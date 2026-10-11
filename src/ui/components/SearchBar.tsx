@@ -4,8 +4,17 @@ import type { Place } from '../../services/types';
 import { useWeather } from '../../state/weatherStore';
 import { Icon } from './Icon';
 
-export function SearchBar() {
-  const setPlace = useWeather((s) => s.setPlace);
+export function SearchBar({
+  onSelect,
+  label = 'Search for a city',
+  showLocate = true,
+}: {
+  onSelect?: (p: Place) => void;
+  label?: string;
+  showLocate?: boolean;
+} = {}) {
+  const setWeatherPlace = useWeather((s) => s.setPlace);
+  const setPlace = onSelect ?? setWeatherPlace;
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Place[]>([]);
   const [open, setOpen] = useState(false);
@@ -92,7 +101,7 @@ export function SearchBar() {
       <div className="search-row">
         <label className="search-field">
           <Icon name="search" />
-          <span className="visually-hidden">Search for a city</span>
+          <span className="visually-hidden">{label}</span>
           <input
             ref={inputRef}
             type="search"
@@ -101,7 +110,7 @@ export function SearchBar() {
             aria-controls={listId}
             aria-autocomplete="list"
             aria-activedescendant={showList && active >= 0 ? `${listId}-${active}` : undefined}
-            placeholder="Search for a city"
+            placeholder={label}
             autoComplete="off"
             value={query}
             onChange={(e) => {
@@ -116,10 +125,12 @@ export function SearchBar() {
             onBlur={() => setTimeout(() => setOpen(false), 150)}
           />
         </label>
-        <button type="button" className="btn btn-ghost" onClick={useMyLocation}>
-          <Icon name="location" />
-          <span className="btn-label">Use my location</span>
-        </button>
+        {showLocate && (
+          <button type="button" className="btn btn-ghost" onClick={useMyLocation}>
+            <Icon name="location" />
+            <span className="btn-label">Use my location</span>
+          </button>
+        )}
       </div>
       {showList && (
         <ul id={listId} role="listbox" className="search-results">
