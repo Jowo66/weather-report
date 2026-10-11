@@ -9,6 +9,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:4173/weather-report/',
     trace: 'on-first-retry',
+    locale: 'en-CA',
+    timezoneId: 'America/Toronto',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {

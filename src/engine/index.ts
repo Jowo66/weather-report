@@ -14,3 +14,4 @@ export {
 export { solarDeltaTmrt } from './solar';
 export { buildReferenceTable, indexToTemperature, referenceTable } from './perceived';
 export type * from './types';
+export { explain, type Explanation, type ExplanationFactor } from './explain';

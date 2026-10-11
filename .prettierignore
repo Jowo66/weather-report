@@ -5,3 +5,4 @@ docs
 CLAUDE.md
 playwright-report
 test-results
+tests/fixtures
