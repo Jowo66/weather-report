@@ -7,6 +7,7 @@ import {
   recommend,
   type ComfortResult,
   type Context,
+  type EngineConfig,
   type Explanation,
   type GarmentId,
   type Recommendation,
@@ -14,6 +15,7 @@ import {
 import { hourIndexAt } from '../services/openMeteo';
 import { toEngineWeather, type Forecast, type WeatherSample } from '../services/types';
 import { useAvatar } from './avatarStore';
+import { activeConfig, useCalibration } from './calibrationStore';
 import { useOutfit } from './outfitStore';
 import { useWeather } from './weatherStore';
 
@@ -26,6 +28,13 @@ export function useComfortContext(): Context {
     () => ({ activity, shade, umbrella, personalOffset }),
     [activity, shade, umbrella, personalOffset],
   );
+}
+
+/** Engine overrides from the calibration panel (T-24), memoised by value in the engine. */
+export function useEngineConfig() {
+  const enabled = useCalibration((s) => s.enabled);
+  const overrides = useCalibration((s) => s.overrides);
+  return useMemo(() => activeConfig({ enabled, overrides }), [enabled, overrides]);
 }
 
 export function useCurrentSample(): WeatherSample | null {
@@ -42,23 +51,25 @@ export function useComfort(): ComfortView | null {
   const sample = useCurrentSample();
   const worn = useOutfit((s) => s.worn);
   const ctx = useComfortContext();
+  const cfg = useEngineConfig();
   return useMemo(() => {
     if (!sample) return null;
     return {
       sample,
-      result: evaluate(toEngineWeather(sample), worn, ctx),
+      result: evaluate(toEngineWeather(sample), worn, ctx, cfg),
       forecastFeelsLike: forecastFeelsLike(sample.tAir, sample.rh, sample.windKmh),
     };
-  }, [sample, worn, ctx]);
+  }, [sample, worn, ctx, cfg]);
 }
 
 export function useExplanation(): Explanation | null {
   const sample = useCurrentSample();
   const worn = useOutfit((s) => s.worn);
   const ctx = useComfortContext();
+  const cfg = useEngineConfig();
   return useMemo(
-    () => (sample ? explain(toEngineWeather(sample), worn, ctx) : null),
-    [sample, worn, ctx],
+    () => (sample ? explain(toEngineWeather(sample), worn, ctx, cfg) : null),
+    [sample, worn, ctx, cfg],
   );
 }
 
@@ -78,8 +89,9 @@ export function upcomingHours(forecast: Forecast, hours: number): WeatherSample[
 export function hourlyRecommendations(
   samples: readonly WeatherSample[],
   ctx: Context,
+  cfg?: Partial<EngineConfig>,
 ): Recommendation[] {
-  return samples.map((s) => recommend(toEngineWeather(s), ctx));
+  return samples.map((s) => recommend(toEngineWeather(s), ctx, cfg));
 }
 
 export function hourlyComfort(
@@ -87,10 +99,11 @@ export function hourlyComfort(
   recs: readonly Recommendation[],
   worn: readonly GarmentId[],
   ctx: Context,
+  cfg?: Partial<EngineConfig>,
 ): HourView[] {
   return samples.map((sample, i) => ({
     sample,
-    result: evaluate(toEngineWeather(sample), worn, ctx),
+    result: evaluate(toEngineWeather(sample), worn, ctx, cfg),
     recommendation: recs[i]!,
   }));
 }
@@ -103,12 +116,20 @@ export function useHourlyComfort(hours = 24): HourView[] {
     () => (forecast ? upcomingHours(forecast, hours) : []),
     [forecast, hours],
   );
-  const recs = useMemo(() => hourlyRecommendations(samples, ctx), [samples, ctx]);
-  return useMemo(() => hourlyComfort(samples, recs, worn, ctx), [samples, recs, worn, ctx]);
+  const cfg = useEngineConfig();
+  const recs = useMemo(() => hourlyRecommendations(samples, ctx, cfg), [samples, ctx, cfg]);
+  return useMemo(
+    () => hourlyComfort(samples, recs, worn, ctx, cfg),
+    [samples, recs, worn, ctx, cfg],
+  );
 }
 
 export function useRecommendation(): Recommendation | null {
   const sample = useCurrentSample();
   const ctx = useComfortContext();
-  return useMemo(() => (sample ? recommend(toEngineWeather(sample), ctx) : null), [sample, ctx]);
+  const cfg = useEngineConfig();
+  return useMemo(
+    () => (sample ? recommend(toEngineWeather(sample), ctx, cfg) : null),
+    [sample, ctx, cfg],
+  );
 }

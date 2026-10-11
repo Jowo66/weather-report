@@ -8,6 +8,7 @@ import { AvatarQaRoute } from './routes/AvatarQaRoute';
 import { AvatarRoute } from './routes/AvatarRoute';
 import { TravelRoute } from './routes/TravelRoute';
 import { CompareRoute } from './routes/CompareRoute';
+import { CalibrationRoute } from './routes/CalibrationRoute';
 import { useEffect } from 'react';
 import { useSettings } from '../state/settingsStore';
 
@@ -54,6 +55,7 @@ export function App() {
             <Route path="/travel" element={<TravelRoute />} />
             <Route path="/compare" element={<CompareRoute />} />
             <Route path="/avatar" element={<AvatarRoute />} />
+            <Route path="/dev/calibration" element={<CalibrationRoute />} />
             <Route path="/dev/avatar-qa" element={<AvatarQaRoute />} />
             <Route path="/how-it-works" element={<HowItWorksRoute />} />
             <Route path="*" element={<NowRoute />} />

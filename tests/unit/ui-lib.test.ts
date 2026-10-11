@@ -103,3 +103,39 @@ describe('copy', () => {
     );
   });
 });
+
+describe('playtest CSV', () => {
+  it('escapes quotes, commas and formula injection', async () => {
+    const { toCsv } = await import('../../src/state/calibrationStore');
+    const csv = toCsv([
+      {
+        at: '2026-10-11T10:00:00Z',
+        place: 'Toronto, ON',
+        lat: 43.7,
+        lon: -79.4,
+        tAir: -5,
+        rh: 70,
+        windKmh: 20,
+        ghi: 0,
+        precipMmH: 0,
+        outfit: ['t_shirt', 'jeans'],
+        activity: 'walking',
+        shade: false,
+        umbrella: false,
+        personalOffset: 0,
+        perceivedDefault: -12.3,
+        perceivedCalibrated: -10,
+        stateDefault: 'freezing',
+        vote: -2,
+        minutesOutside: 30,
+        note: '=HYPERLINK("x") said "brr"',
+      },
+    ]);
+    const [head, row] = csv.trim().split('\n');
+    expect(head!.split(',')).toContain('perceivedDefault');
+    expect(row).toContain('"Toronto, ON"');
+    expect(row).toContain('t_shirt jeans');
+    expect(row).toContain(`"'=HYPERLINK(""x"") said ""brr"""`);
+    expect(row).toContain(',-12.3,');
+  });
+});

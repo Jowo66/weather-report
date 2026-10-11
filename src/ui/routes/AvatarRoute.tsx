@@ -6,6 +6,7 @@ import { useAvatar, type AgeLook, type BuildPreset, type HairStyle } from '../..
 import { useComfortContext } from '../../state/selectors';
 import { useOutfit } from '../../state/outfitStore';
 import { useSettings, type AvatarMode, type MotionPref } from '../../state/settingsStore';
+import type { BackdropPref } from '../../data/backdrops';
 import { useWeather } from '../../state/weatherStore';
 import { AvatarPanel } from '../components/AvatarPanel';
 import { formatDelta } from '../lib/format';
@@ -277,6 +278,18 @@ export function AvatarRoute() {
               ]}
               value={settings.avatarMode}
               onChange={settings.setAvatarMode}
+            />
+            <Segmented<BackdropPref>
+              legend="Backdrop"
+              name="backdrop"
+              options={[
+                { id: 'auto', label: 'Match the weather' },
+                { id: 'city', label: 'City' },
+                { id: 'arctic', label: 'Arctic' },
+                { id: 'beach', label: 'Beach' },
+              ]}
+              value={settings.backdrop}
+              onChange={settings.setBackdrop}
             />
             <label className="switch">
               <input

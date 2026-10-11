@@ -1,6 +1,9 @@
 import {
   ACESFilmicToneMapping,
   CircleGeometry,
+  Fog,
+  InstancedMesh,
+  Object3D,
   Color,
   DirectionalLight,
   HemisphereLight,
@@ -16,7 +19,9 @@ import {
   WebGLRenderer,
   type Material,
 } from 'three';
+import type { Backdrop } from '../data/backdrops';
 import { GARMENT_BY_ID } from '../data/garments';
+import { buildBackdrop, type BackdropScene } from './environments/backdrops3d';
 import {
   ZONE_IDS,
   type ComfortState,
@@ -82,6 +87,7 @@ export interface AvatarSceneProps {
   shade: boolean;
   umbrella: boolean;
   reducedMotion: boolean;
+  backdrop: Backdrop;
 }
 
 const lum = (hex: string) => {
@@ -122,6 +128,12 @@ export class AvatarScene {
   private gusted = false;
   private disposed = false;
   private resizeObs: ResizeObserver;
+  private backdrop: BackdropScene | null = null;
+  private backdropKind: Backdrop | null = null;
+  private footprints: InstancedMesh;
+  /** Snow accumulation on garments, 0–1 over 60 s of snowfall (cosmetic). */
+  private snowAmount = 0;
+  private snowUniforms = new Set<{ value: number }>();
 
   constructor(
     private readonly container: HTMLElement,
@@ -157,6 +169,27 @@ export class AvatarScene {
     this.ground.rotation.x = -Math.PI / 2;
     this.ground.receiveShadow = true;
     this.scene.add(this.ground);
+    // Footprints in snow (TDD §8.6 / R5): a static trail leading to the avatar.
+    this.footprints = new InstancedMesh(
+      new CircleGeometry(0.06, 12),
+      new MeshStandardMaterial({
+        color: '#c9d6e2',
+        roughness: 1,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+      }),
+      10,
+    );
+    const d = new Object3D();
+    for (let i = 0; i < 10; i++) {
+      d.position.set(i % 2 ? 0.1 : -0.1, 0.004, -0.35 - i * 0.38);
+      d.rotation.set(-Math.PI / 2, 0, 0);
+      d.scale.set(0.8, 1.9, 1);
+      d.updateMatrix();
+      this.footprints.setMatrixAt(i, d.matrix);
+    }
+    this.footprints.visible = false;
+    this.scene.add(this.footprints);
     this.particles = new WeatherParticles(this.scene, opts.mobile);
     this.anim = initialAnimState({ perceived: 22, flags: [] });
     this.resizeObs = new ResizeObserver(() => this.resize());
@@ -248,6 +281,9 @@ export class AvatarScene {
   private syncGarments(worn: readonly GarmentId[]) {
     for (const [id, m] of this.garments) {
       if (!worn.includes(id)) {
+        this.snowUniforms.delete(
+          (m.material as MeshStandardMaterial).userData.snow as { value: number },
+        );
         this.disposeMesh(m);
         this.garments.delete(id);
       }
@@ -308,6 +344,7 @@ export class AvatarScene {
       }
       this.syncGarments(p.worn);
       this.buildHair(p.appearance, p.worn);
+      this.setSnow(0); // snow resets on outfit change
     }
     if (appearanceChanged || !prev || prev.umbrella !== p.umbrella) {
       if (appearanceChanged) this.props = null;
@@ -352,9 +389,24 @@ export class AvatarScene {
     this.kick();
   }
 
+  private setSnow(v: number) {
+    this.snowAmount = v;
+    for (const u of this.snowUniforms) u.value = v;
+  }
+
   private applyEnvironment(p: AvatarSceneProps) {
     const w = p.weather;
     const day = w ? w.isDay : true;
+    if (this.backdropKind !== p.backdrop) {
+      if (this.backdrop) {
+        this.scene.remove(this.backdrop.group);
+        this.backdrop.dispose();
+      }
+      this.backdrop = buildBackdrop(p.backdrop);
+      this.backdropKind = p.backdrop;
+      this.scene.add(this.backdrop.group);
+    }
+    this.backdrop?.setNight(!day);
     const sky = !w
       ? '#cfdde8'
       : !day
@@ -365,10 +417,12 @@ export class AvatarScene {
             ? '#b8c4cc'
             : '#a9cdee';
     this.scene.background = new Color(sky);
+    this.scene.fog = new Fog(sky, 9, 26);
     const snowy = !!w && w.snowDepthM > 0.01;
-    (this.ground.material as MeshStandardMaterial).color.set(
-      snowy ? '#eef3f7' : day ? '#8f978a' : '#3a3f45',
-    );
+    const groundCol = new Color(snowy ? '#eef3f7' : (this.backdrop?.ground ?? '#8f978a'));
+    if (!day) groundCol.multiplyScalar(0.45);
+    (this.ground.material as MeshStandardMaterial).color.copy(groundCol);
+    this.footprints.visible = snowy;
     this.hemi.intensity = day ? 1.3 : 0.45;
     this.hemi.color.set(day ? '#e3edf7' : '#8fa2c4');
     const alt = w ? Math.max(5, w.sunAltDeg) : 45;
@@ -434,6 +488,8 @@ export class AvatarScene {
       );
     }
     this.applyPose(p, inputs.wind);
+    const snowing = !!w && (w.snowfallCmH > 0 || (w.precipMmH > 0 && w.tAir <= 0));
+    if (snowing && this.snowAmount < 1) this.setSnow(Math.min(1, this.snowAmount + dtMs / 60_000));
     if (!p.reducedMotion) this.updateParticles(p, dtMs / 1000);
     this.renderer.render(this.scene, this.camera);
     // Demand loop: keep going while anything moves; in reduced motion stop once settled.
@@ -530,6 +586,10 @@ export class AvatarScene {
     return this.renderer.info.render.calls;
   }
 
+  get currentBackdrop() {
+    return this.backdropKind;
+  }
+
   get bodyState() {
     return this.anim.state;
   }
@@ -542,6 +602,9 @@ export class AvatarScene {
     for (const m of [this.body, this.face, this.hair, this.props]) this.disposeMesh(m ?? null);
     for (const m of this.garments.values()) this.disposeMesh(m);
     this.particles.dispose();
+    this.backdrop?.dispose();
+    this.footprints.geometry.dispose();
+    (this.footprints.material as Material).dispose();
     this.ground.geometry.dispose();
     (this.ground.material as Material).dispose();
     this.renderer.dispose();
