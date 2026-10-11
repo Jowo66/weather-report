@@ -122,6 +122,8 @@ export interface Rig {
   bones: Record<BoneName, Bone>;
   skeleton: Skeleton;
   dims: Dims;
+  /** Mesh detail multiplier (1 = full; lower on weak/software GPUs). */
+  detail: number;
 }
 
 export function buildRig(d: Dims): Rig {
@@ -163,7 +165,7 @@ export function buildRig(d: Dims): Rig {
   link('chest', 'scarfTail', 0.05, d.chestLen - 0.02, d.torsoR * d.torsoD + 0.03);
   b.root.updateMatrixWorld(true);
   const skeleton = new Skeleton(BONES.map((n) => b[n]));
-  return { root: b.root, bones: b, skeleton, dims: d };
+  return { root: b.root, bones: b, skeleton, dims: d, detail: 1 };
 }
 
 export interface Part {
@@ -241,110 +243,3 @@ export const cyl = (rTop: number, rBot: number, h: number, open = false, seg = 1
 export const torus = (r: number, tube: number, arc = Math.PI * 2) =>
   new TorusGeometry(r, tube, 8, 20, arc);
 export const box = (x: number, y: number, z: number) => new BoxGeometry(x, y, z);
-
-/** Body mesh parts (skin), each tagged with its comfort zone. */
-export function bodyParts(r: Rig): Part[] {
-  const d = r.dims;
-  const Z = ZONE_INDEX;
-  const parts: Part[] = [
-    {
-      bone: 'torsoShell',
-      geo: capsule(d.torsoR, d.chestLen + d.spineLen - 0.2),
-      at: [0, -0.02, 0],
-      scale: [d.torsoW, 1, d.torsoD],
-      zone: Z.torso,
-    },
-    {
-      bone: 'hips',
-      geo: sphere(d.torsoR * 1.02),
-      at: [0, -0.03, 0],
-      scale: [d.torsoW * 0.98, 0.85, d.torsoD * 1.05],
-      zone: Z.legs,
-    },
-    {
-      bone: 'neck',
-      geo: cyl(0.042, 0.048, d.neckLen + 0.04),
-      at: [0, d.neckLen / 2, 0],
-      zone: Z.head,
-    },
-    {
-      bone: 'head',
-      geo: sphere(d.headR, 24, 18),
-      at: [0, 0.1, 0],
-      scale: [0.95, 1.12, 1],
-      zone: Z.head,
-    },
-    { bone: 'head', geo: sphere(0.016, 8, 6), at: [0, 0.085, d.headR * 0.98], zone: Z.head },
-    {
-      bone: 'head',
-      geo: sphere(0.022, 8, 6),
-      at: [d.headR * 0.93, 0.095, 0],
-      scale: [0.5, 1, 0.8],
-      zone: Z.head,
-    },
-    {
-      bone: 'head',
-      geo: sphere(0.022, 8, 6),
-      at: [-d.headR * 0.93, 0.095, 0],
-      scale: [0.5, 1, 0.8],
-      zone: Z.head,
-    },
-  ];
-  for (const s of ['L', 'R'] as const) {
-    parts.push(
-      { bone: `upperArm${s}`, geo: sphere(d.armR * 1.08), at: [0, -0.01, 0], zone: Z.arms },
-      {
-        bone: `upperArm${s}`,
-        geo: capsule(d.armR, d.upperArm - 2 * d.armR),
-        at: [0, -d.upperArm / 2, 0],
-        zone: Z.arms,
-      },
-      {
-        bone: `foreArm${s}`,
-        geo: capsule(d.foreR, d.foreArm - 2 * d.foreR),
-        at: [0, -d.foreArm / 2, 0],
-        zone: Z.arms,
-      },
-      {
-        bone: `hand${s}`,
-        geo: sphere(0.042),
-        at: [0, -0.055, 0.004],
-        scale: [0.85, 1.55, 0.6],
-        zone: Z.hands,
-      },
-      {
-        bone: `thigh${s}`,
-        geo: capsule(d.thighR, d.thigh - d.thighR),
-        at: [0, -d.thigh / 2, 0],
-        zone: Z.legs,
-      },
-      {
-        bone: `shin${s}`,
-        geo: capsule(d.shinR, d.shin - d.shinR),
-        at: [0, -d.shin / 2, 0],
-        zone: Z.legs,
-      },
-      {
-        bone: `foot${s}`,
-        geo: capsule(0.038, 0.13),
-        at: [0, -0.012, 0.05],
-        rot: [Math.PI / 2, 0, 0],
-        scale: [1.15, 1, 0.8],
-        zone: Z.feet,
-      },
-    );
-  }
-  return parts;
-}
-
-/** Eyes, brows and mouth; vertex-coloured. */
-export function faceParts(browColor: [number, number, number]): Part[] {
-  const dark: [number, number, number] = [0.08, 0.07, 0.07];
-  return [
-    { bone: 'eyeL', geo: sphere(0.0125, 10, 8), scale: [1, 1.15, 0.55], color: dark },
-    { bone: 'eyeR', geo: sphere(0.0125, 10, 8), scale: [1, 1.15, 0.55], color: dark },
-    { bone: 'browL', geo: box(0.034, 0.007, 0.01), color: browColor },
-    { bone: 'browR', geo: box(0.034, 0.007, 0.01), color: browColor },
-    { bone: 'mouth', geo: sphere(0.02, 12, 8), scale: [1.1, 0.35, 0.4], color: [0.35, 0.12, 0.12] },
-  ];
-}
