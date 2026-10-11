@@ -87,7 +87,11 @@ export function NowRoute() {
       )}
       {view && place && (
         <>
-          <Hero view={view} placeName={place.name} avatar={<AvatarPanel result={view.result} />} />
+          <Hero
+            view={view}
+            placeName={place.name}
+            avatar={<AvatarPanel result={view.result} sample={view.sample} />}
+          />
           {explanation && <ExplanationChips explanation={explanation} />}
           <FlagCards flags={view.result.flags} />
           <ZoneStrip result={view.result} />
