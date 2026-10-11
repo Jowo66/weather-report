@@ -68,28 +68,43 @@ export interface HourView {
   recommendation: Recommendation;
 }
 
-/** Pure helper: next `hours` hourly samples from the current time, with comfort for `worn`. */
+/** Pure helper: next `hours` hourly samples from the current time. */
+export function upcomingHours(forecast: Forecast, hours: number): WeatherSample[] {
+  const start = hourIndexAt(forecast.hourly, forecast.current.time);
+  return forecast.hourly.slice(start, start + hours);
+}
+
+/** Recommendations depend on weather and context only, not on what you're wearing. */
+export function hourlyRecommendations(
+  samples: readonly WeatherSample[],
+  ctx: Context,
+): Recommendation[] {
+  return samples.map((s) => recommend(toEngineWeather(s), ctx));
+}
+
 export function hourlyComfort(
-  forecast: Forecast,
+  samples: readonly WeatherSample[],
+  recs: readonly Recommendation[],
   worn: readonly GarmentId[],
   ctx: Context,
-  hours: number,
 ): HourView[] {
-  const start = hourIndexAt(forecast.hourly, forecast.current.time);
-  return forecast.hourly.slice(start, start + hours).map((sample) => {
-    const w = toEngineWeather(sample);
-    return { sample, result: evaluate(w, worn, ctx), recommendation: recommend(w, ctx) };
-  });
+  return samples.map((sample, i) => ({
+    sample,
+    result: evaluate(toEngineWeather(sample), worn, ctx),
+    recommendation: recs[i]!,
+  }));
 }
 
 export function useHourlyComfort(hours = 24): HourView[] {
   const forecast = useWeather((s) => s.forecast);
   const worn = useOutfit((s) => s.worn);
   const ctx = useComfortContext();
-  return useMemo(
-    () => (forecast ? hourlyComfort(forecast, worn, ctx, hours) : []),
-    [forecast, worn, ctx, hours],
+  const samples = useMemo(
+    () => (forecast ? upcomingHours(forecast, hours) : []),
+    [forecast, hours],
   );
+  const recs = useMemo(() => hourlyRecommendations(samples, ctx), [samples, ctx]);
+  return useMemo(() => hourlyComfort(samples, recs, worn, ctx), [samples, recs, worn, ctx]);
 }
 
 export function useRecommendation(): Recommendation | null {

@@ -1,15 +1,28 @@
-import { useEffect, useState } from 'react';
-import { useComfort, useExplanation, useHourlyComfort } from '../../state/selectors';
+import { useDeferredValue, useEffect, useState } from 'react';
+import {
+  useComfort,
+  useExplanation,
+  useHourlyComfort,
+  useRecommendation,
+} from '../../state/selectors';
 import { useSettings } from '../../state/settingsStore';
 import { useWeather } from '../../state/weatherStore';
+import { AvatarPanel } from '../components/AvatarPanel';
+import { OutfitAnnouncer } from '../components/Announcer';
 import { ExplanationChips } from '../components/ExplanationChips';
 import { FlagCards } from '../components/FlagCards';
 import { Hero } from '../components/Hero';
 import { HourlyStrip } from '../components/HourlyStrip';
 import { LiveSummary } from '../components/LiveSummary';
+import { OutfitTray } from '../components/OutfitTray';
+import { RecommendCard } from '../components/RecommendCard';
 import { SearchBar } from '../components/SearchBar';
 import { StatusBanner } from '../components/StatusBanner';
-import { STATE_LABEL } from '../lib/comfortCopy';
+import { Toggles } from '../components/Toggles';
+import { WardrobeSheet } from '../components/WardrobeSheet';
+import { ZoneStrip } from '../components/ZoneStrip';
+import { STATE_LABEL, ZONE_LABEL, ZONE_STATE_LABEL } from '../lib/comfortCopy';
+import { ZONE_IDS } from '../../engine';
 import { spokenTemp } from '../lib/format';
 import { useUrlSync } from '../lib/useUrlSync';
 
@@ -32,7 +45,9 @@ export function NowRoute() {
   const refresh = useWeather((s) => s.refresh);
   const view = useComfort();
   const explanation = useExplanation();
-  const hours = useHourlyComfort(24);
+  const hours = useDeferredValue(useHourlyComfort(24));
+  const rec = useRecommendation();
+  const [wardrobeOpen, setWardrobeOpen] = useState(false);
   const unit = useSettings((s) => s.tempUnit);
   const now = useNow(60_000);
 
@@ -43,8 +58,13 @@ export function NowRoute() {
     return () => clearInterval(t);
   }, [place, refresh]);
 
+  const coldZones = view
+    ? ZONE_IDS.filter((z) => view.result.zones[z].state !== 'ok').map(
+        (z) => `${ZONE_LABEL[z]} ${ZONE_STATE_LABEL[view.result.zones[z].state].toLowerCase()}`,
+      )
+    : [];
   const summary = view
-    ? `You'll feel ${spokenTemp(view.result.perceived, unit)}, ${STATE_LABEL[view.result.state].toLowerCase()}.`
+    ? `You'll feel ${spokenTemp(view.result.perceived, unit)}, ${STATE_LABEL[view.result.state].toLowerCase()}.${coldZones.length ? ` ${coldZones.join('. ')}.` : ''}`
     : '';
 
   return (
@@ -67,15 +87,20 @@ export function NowRoute() {
       )}
       {view && place && (
         <>
-          <Hero view={view} placeName={place.name} />
+          <Hero view={view} placeName={place.name} avatar={<AvatarPanel result={view.result} />} />
           {explanation && <ExplanationChips explanation={explanation} />}
           <FlagCards flags={view.result.flags} />
+          <ZoneStrip result={view.result} />
+          <Toggles />
+          <OutfitTray onOpenWardrobe={() => setWardrobeOpen(true)} />
+          {rec && <RecommendCard rec={rec} sample={view.sample} />}
           <HourlyStrip hours={hours} timeZone={forecast?.timezone ?? 'UTC'} />
           <p className="reference-note muted">
-            Outfit: T-shirt, jeans, socks and sneakers, standing. &ldquo;You&rsquo;ll feel
-            14°&rdquo; means you&rsquo;d feel like someone in a T-shirt and jeans does at 14° in the
-            shade on a still day.
+            &ldquo;You&rsquo;ll feel 14°&rdquo; means you&rsquo;d feel the way someone in a T-shirt
+            and jeans feels at 14° in the shade on a still day.
           </p>
+          <WardrobeSheet open={wardrobeOpen} onClose={() => setWardrobeOpen(false)} />
+          <OutfitAnnouncer />
           <LiveSummary text={summary} />
         </>
       )}
