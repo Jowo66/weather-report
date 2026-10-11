@@ -983,3 +983,188 @@ main {
   border-radius: 50%;
   border: 1px solid rgb(0 0 0 / 25%);
 }
+
+/* Travel */
+.trip-form {
+  display: grid;
+  gap: 1rem;
+}
+.trip-dest {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.trip-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.trip-dates label {
+  display: grid;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+.trip-dates input {
+  min-height: 44px;
+  padding: 0 0.6rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+}
+.days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.day {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  margin: 0;
+  border-left: 5px solid var(--st, var(--st-comfortable));
+}
+.day-short {
+  outline: 2px dashed var(--st-overheated);
+  outline-offset: 2px;
+}
+.day-avatar svg {
+  width: 100%;
+  height: auto;
+}
+.day-title {
+  font-size: 1rem;
+  margin: 0 0 0.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+.day-outfit {
+  margin: 0 0 0.4rem;
+  font-weight: 600;
+}
+.day-parts {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+.part-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.badge-normal {
+  border-style: dashed;
+}
+.badge-short {
+  border-color: var(--st-overheated);
+  color: var(--st-overheated);
+}
+.pack {
+  list-style: none;
+  margin: 0.5rem 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+.pack li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'sw name step' 'sw status step';
+  align-items: center;
+  gap: 0 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.pack li .swatch {
+  grid-area: sw;
+}
+.pack-name {
+  grid-area: name;
+}
+.pack-status {
+  grid-area: status;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.pack li.packed .pack-status {
+  color: var(--st-comfortable);
+  font-weight: 600;
+}
+.stepper {
+  grid-area: step;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.stepper .btn {
+  min-width: 40px;
+  padding: 0;
+}
+.pack-extra {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
+}
+.pack-extra input {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+.missing h4 {
+  margin: 0.75rem 0 0.25rem;
+}
+
+/* Compare */
+.compare-grid {
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+.compare-col {
+  margin: 0;
+  border-top: 5px solid var(--st, var(--border));
+}
+.compare-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.compare-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.compare-avatar {
+  display: flex;
+  justify-content: center;
+}
+.compare-avatar svg {
+  width: 7.5rem;
+  height: auto;
+}
+.compare-rec {
+  font-weight: 600;
+}
