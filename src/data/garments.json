@@ -1,0 +1,522 @@
+[
+  {
+    "id": "tank_top",
+    "name": "Tank top",
+    "category": "top",
+    "slot": "torso_base",
+    "layer": 1,
+    "clo": 0.06,
+    "cloSource": "estimate",
+    "coverage": {
+      "torso": 0.8
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.4,
+    "eligibleMinT": 25,
+    "mesh": {
+      "glb": "garments/tank_top.glb",
+      "hidesBody": [],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#e9b949",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "t_shirt",
+    "name": "T-shirt",
+    "category": "top",
+    "slot": "torso_base",
+    "layer": 1,
+    "clo": 0.08,
+    "cloSource": "ASHRAE55",
+    "coverage": {
+      "torso": 1.0,
+      "arms": 0.2
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.4,
+    "mesh": {
+      "glb": "garments/t_shirt.glb",
+      "hidesBody": ["torso"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#3d7cc9",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "long_sleeve",
+    "name": "Long-sleeve shirt",
+    "category": "top",
+    "slot": "torso_mid",
+    "layer": 2,
+    "clo": 0.25,
+    "cloSource": "ASHRAE55",
+    "coverage": {
+      "torso": 1.0,
+      "arms": 1.0
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.4,
+    "mesh": {
+      "glb": "garments/long_sleeve.glb",
+      "hidesBody": ["torso", "arms"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#e8e2d0",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "thermal_top",
+    "name": "Thermal top",
+    "category": "top",
+    "slot": "torso_base",
+    "layer": 1,
+    "clo": 0.2,
+    "cloSource": "ASHRAE55",
+    "coverage": {
+      "torso": 1.0,
+      "arms": 1.0
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.25,
+    "eligibleMaxT": 8,
+    "mesh": {
+      "glb": "garments/thermal_top.glb",
+      "hidesBody": ["torso", "arms"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#8d6e63",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "hoodie",
+    "name": "Hoodie",
+    "category": "top",
+    "slot": "torso_insulation",
+    "layer": 3,
+    "clo": 0.34,
+    "cloSource": "ASHRAE55",
+    "coverage": {
+      "torso": 1.0,
+      "arms": 1.0,
+      "head": 0.3
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.4,
+    "mesh": {
+      "glb": "garments/hoodie.glb",
+      "hidesBody": ["torso", "arms"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#6b7f3a",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "sweater",
+    "name": "Sweater",
+    "category": "top",
+    "slot": "torso_insulation",
+    "layer": 3,
+    "clo": 0.36,
+    "cloSource": "ASHRAE55",
+    "coverage": {
+      "torso": 1.0,
+      "arms": 1.0
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.3,
+    "mesh": {
+      "glb": "garments/sweater.glb",
+      "hidesBody": ["torso", "arms"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#a33b3b",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "light_jacket",
+    "name": "Light jacket",
+    "category": "outer",
+    "slot": "torso_outer",
+    "layer": 4,
+    "clo": 0.3,
+    "cloSource": "estimate",
+    "coverage": {
+      "torso": 1.0,
+      "arms": 1.0
+    },
+    "i_m": 0.25,
+    "windproof": true,
+    "waterproof": false,
+    "wetLoss": 0.4,
+    "mesh": {
+      "glb": "garments/light_jacket.glb",
+      "hidesBody": ["torso", "arms"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#4a5568",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "rain_shell",
+    "name": "Rain shell",
+    "category": "outer",
+    "slot": "torso_outer",
+    "layer": 5,
+    "clo": 0.15,
+    "cloSource": "estimate",
+    "coverage": {
+      "torso": 1.0,
+      "arms": 1.0,
+      "head": 0.6
+    },
+    "i_m": 0.15,
+    "windproof": true,
+    "waterproof": true,
+    "wetLoss": 0.0,
+    "mesh": {
+      "glb": "garments/rain_shell.glb",
+      "hidesBody": ["torso", "arms"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#f2c230",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "winter_coat",
+    "name": "Winter coat",
+    "category": "outer",
+    "slot": "torso_outer",
+    "layer": 5,
+    "clo": 0.7,
+    "cloSource": "estimate",
+    "coverage": {
+      "torso": 1.0,
+      "arms": 1.0,
+      "legs": 0.25
+    },
+    "i_m": 0.2,
+    "windproof": true,
+    "waterproof": false,
+    "wetLoss": 0.4,
+    "eligibleMaxT": 10,
+    "mesh": {
+      "glb": "garments/winter_coat.glb",
+      "hidesBody": ["torso", "arms"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#1f3a5f",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "shorts",
+    "name": "Shorts",
+    "category": "bottom",
+    "slot": "legs_outer",
+    "layer": 2,
+    "clo": 0.08,
+    "cloSource": "ASHRAE55",
+    "coverage": {
+      "legs": 0.4
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.4,
+    "eligibleMinT": 21,
+    "mesh": {
+      "glb": "garments/shorts.glb",
+      "hidesBody": [],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#c9a46b",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "jeans",
+    "name": "Jeans",
+    "category": "bottom",
+    "slot": "legs_outer",
+    "layer": 2,
+    "clo": 0.24,
+    "cloSource": "ASHRAE55",
+    "coverage": {
+      "legs": 1.0
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.5,
+    "mesh": {
+      "glb": "garments/jeans.glb",
+      "hidesBody": ["legs"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#2f4f7f",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "thermal_bottoms",
+    "name": "Thermal bottoms",
+    "category": "bottom",
+    "slot": "legs_base",
+    "layer": 1,
+    "clo": 0.15,
+    "cloSource": "ASHRAE55",
+    "coverage": {
+      "legs": 1.0
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.25,
+    "eligibleMaxT": 5,
+    "mesh": {
+      "glb": "garments/thermal_bottoms.glb",
+      "hidesBody": ["legs"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#8d6e63",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "snow_pants",
+    "name": "Snow pants",
+    "category": "bottom",
+    "slot": "legs_outer",
+    "layer": 5,
+    "clo": 0.5,
+    "cloSource": "estimate",
+    "coverage": {
+      "legs": 1.0
+    },
+    "i_m": 0.18,
+    "windproof": true,
+    "waterproof": true,
+    "wetLoss": 0.0,
+    "eligibleMaxT": -5,
+    "mesh": {
+      "glb": "garments/snow_pants.glb",
+      "hidesBody": ["legs"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#2b2b2b",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "toque",
+    "name": "Toque",
+    "category": "head",
+    "slot": "head",
+    "layer": 5,
+    "clo": 0.05,
+    "cloSource": "estimate",
+    "coverage": {
+      "head": 0.6
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.25,
+    "eligibleMaxT": 8,
+    "mesh": {
+      "glb": "garments/toque.glb",
+      "hidesBody": [],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#c0392b",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "scarf",
+    "name": "Scarf",
+    "category": "neck",
+    "slot": "neck",
+    "layer": 5,
+    "clo": 0.05,
+    "cloSource": "estimate",
+    "coverage": {
+      "head": 0.3
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.4,
+    "eligibleMaxT": 2,
+    "mesh": {
+      "glb": "garments/scarf.glb",
+      "hidesBody": [],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#d35400",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "gloves",
+    "name": "Gloves",
+    "category": "hands",
+    "slot": "hands",
+    "layer": 5,
+    "clo": 0.06,
+    "cloSource": "estimate",
+    "coverage": {
+      "hands": 1.0
+    },
+    "i_m": 0.25,
+    "windproof": true,
+    "waterproof": false,
+    "wetLoss": 0.4,
+    "eligibleMaxT": 8,
+    "mesh": {
+      "glb": "garments/gloves.glb",
+      "hidesBody": ["hands"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#333333",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "socks",
+    "name": "Socks",
+    "category": "socks",
+    "slot": "socks",
+    "layer": 1,
+    "clo": 0.02,
+    "cloSource": "ASHRAE55",
+    "coverage": {
+      "feet": 1.0
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.4,
+    "mesh": {
+      "glb": "garments/socks.glb",
+      "hidesBody": ["feet"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#f5f5f5",
+      "dyeable": false
+    }
+  },
+  {
+    "id": "wool_socks",
+    "name": "Wool socks",
+    "category": "socks",
+    "slot": "socks",
+    "layer": 1,
+    "clo": 0.06,
+    "cloSource": "ASHRAE55",
+    "coverage": {
+      "feet": 1.0
+    },
+    "i_m": 0.38,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.2,
+    "mesh": {
+      "glb": "garments/wool_socks.glb",
+      "hidesBody": ["feet"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#9e9e9e",
+      "dyeable": true
+    }
+  },
+  {
+    "id": "sneakers",
+    "name": "Sneakers",
+    "category": "footwear",
+    "slot": "footwear",
+    "layer": 5,
+    "clo": 0.02,
+    "cloSource": "ASHRAE55",
+    "coverage": {
+      "feet": 1.0
+    },
+    "i_m": 0.25,
+    "windproof": false,
+    "waterproof": false,
+    "wetLoss": 0.4,
+    "mesh": {
+      "glb": "garments/sneakers.glb",
+      "hidesBody": ["feet"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#fafafa",
+      "dyeable": false
+    }
+  },
+  {
+    "id": "winter_boots",
+    "name": "Winter boots",
+    "category": "footwear",
+    "slot": "footwear",
+    "layer": 5,
+    "clo": 0.1,
+    "cloSource": "ASHRAE55",
+    "coverage": {
+      "feet": 1.0
+    },
+    "i_m": 0.15,
+    "windproof": true,
+    "waterproof": true,
+    "wetLoss": 0.0,
+    "mesh": {
+      "glb": "garments/winter_boots.glb",
+      "hidesBody": ["feet"],
+      "shapeKeys": true
+    },
+    "tint": {
+      "default": "#5d4037",
+      "dyeable": true
+    }
+  }
+]
