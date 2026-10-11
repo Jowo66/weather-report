@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { BackdropPref } from '../data/backdrops';
 import { jsonStorage } from './persist';
 
 export type TempUnit = 'C' | 'F';
@@ -13,6 +14,8 @@ export interface SettingsState {
   motion: MotionPref;
   highContrast: boolean;
   avatarMode: AvatarMode;
+  backdrop: BackdropPref;
+  setBackdrop: (b: BackdropPref) => void;
   setAvatarMode: (m: AvatarMode) => void;
   setTempUnit: (u: TempUnit) => void;
   setWindUnit: (u: WindUnit) => void;
@@ -40,6 +43,8 @@ export const useSettings = create<SettingsState>()(
       motion: 'system',
       highContrast: false,
       avatarMode: 'auto',
+      backdrop: 'auto',
+      setBackdrop: (backdrop) => set({ backdrop }),
       setAvatarMode: (avatarMode) => set({ avatarMode }),
       setTempUnit: (tempUnit) => set({ tempUnit }),
       setWindUnit: (windUnit) => set({ windUnit }),

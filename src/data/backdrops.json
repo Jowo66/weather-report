@@ -1,0 +1,25 @@
+{
+  "default": "city",
+  "rules": [
+    {
+      "backdrop": "arctic",
+      "when": {
+        "snowDepthMGt": 0.05
+      }
+    },
+    {
+      "backdrop": "arctic",
+      "when": {
+        "tAirLte": -10
+      }
+    },
+    {
+      "backdrop": "beach",
+      "when": {
+        "tAirGte": 28,
+        "isDay": true,
+        "sunny": true
+      }
+    }
+  ]
+}

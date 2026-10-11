@@ -37,6 +37,13 @@ export default function AvatarCanvas({ label, onStateChange, ...props }: AvatarC
   }, [onStateChange]);
 
   return (
-    <div ref={host} className="avatar3d" role="img" aria-label={label} data-testid="avatar-3d" />
+    <div
+      ref={host}
+      className="avatar3d"
+      role="img"
+      aria-label={label}
+      data-testid="avatar-3d"
+      data-backdrop={props.backdrop}
+    />
   );
 }

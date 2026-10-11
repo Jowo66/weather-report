@@ -73,6 +73,20 @@ const DEFAULTS: EngineConfig = {
 
 export const DEFAULT_CONFIG: Readonly<EngineConfig> = Object.freeze(DEFAULTS);
 
+const resolved = new Map<string, EngineConfig>();
+
+/**
+ * Merge overrides onto the defaults. Results are memoised by value so the reference table
+ * (keyed by config identity) is built once per distinct calibration, not once per call.
+ */
 export function resolveConfig(cfg?: Partial<EngineConfig>): EngineConfig {
-  return cfg ? { ...DEFAULT_CONFIG, ...cfg } : DEFAULT_CONFIG;
+  if (!cfg || Object.keys(cfg).length === 0) return DEFAULT_CONFIG;
+  const key = JSON.stringify(cfg);
+  let r = resolved.get(key);
+  if (!r) {
+    r = { ...DEFAULT_CONFIG, ...cfg };
+    if (resolved.size > 64) resolved.clear();
+    resolved.set(key, r);
+  }
+  return r;
 }

@@ -1168,3 +1168,22 @@ main {
 .compare-rec {
   font-weight: 600;
 }
+
+/* Calibration */
+.tunables {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.note {
+  display: grid;
+  gap: 0.25rem;
+}
+.note textarea {
+  font: inherit;
+  padding: 0.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+}

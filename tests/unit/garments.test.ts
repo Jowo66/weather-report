@@ -94,3 +94,27 @@ describe('slot conflicts (TDD §5.3)', () => {
     expect(GARMENT_BY_ID.scarf.slot).toBe('neck');
   });
 });
+
+describe('backdrops (TDD §8.6)', () => {
+  it('picks city / arctic / beach from conditions, with a manual override', async () => {
+    const { chooseBackdrop } = await import('../../src/data/backdrops');
+    const base = {
+      tAir: 15,
+      snowDepthM: 0,
+      isDay: true,
+      cloudCover: 50,
+      precipMmH: 0,
+      weatherCode: 3,
+    };
+    expect(chooseBackdrop(base)).toBe('city');
+    expect(chooseBackdrop({ ...base, snowDepthM: 0.1 })).toBe('arctic');
+    expect(chooseBackdrop({ ...base, tAir: -12 })).toBe('arctic');
+    expect(chooseBackdrop({ ...base, tAir: 31, cloudCover: 10 })).toBe('beach');
+    expect(chooseBackdrop({ ...base, tAir: 31, cloudCover: 10, isDay: false })).toBe('city');
+    expect(chooseBackdrop({ ...base, tAir: 31, cloudCover: 90 })).toBe('city');
+    expect(chooseBackdrop({ ...base, tAir: 31, cloudCover: 60, weatherCode: 1 })).toBe('beach');
+    expect(chooseBackdrop({ ...base, tAir: 31, cloudCover: 10, precipMmH: 2 })).toBe('city');
+    expect(chooseBackdrop({ ...base, tAir: -12 }, 'beach')).toBe('beach');
+    expect(chooseBackdrop(null)).toBe('city');
+  });
+});

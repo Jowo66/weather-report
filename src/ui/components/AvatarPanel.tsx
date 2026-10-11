@@ -1,5 +1,6 @@
 import { Component, lazy, Suspense, useState, type ReactNode } from 'react';
 import { ZONE_IDS, type ComfortResult, type ZoneId, type ZoneState } from '../../engine';
+import { chooseBackdrop } from '../../data/backdrops';
 import { Avatar2D } from '../../scene/Avatar2D';
 import { skinHex } from '../../scene/skinTone';
 import type { WeatherSample } from '../../services/types';
@@ -59,6 +60,8 @@ export function AvatarPanel({
     })),
   );
   const avatarMode = useSettings((s) => s.avatarMode);
+  const backdropPref = useSettings((s) => s.backdrop);
+  const backdrop = chooseBackdrop(sample ?? null, backdropPref);
   const reducedMotion = useReducedMotion();
   const [use3D] = useState(() =>
     forceMode ? forceMode === '3d' : avatarMode !== '2d' && canUse3D(),
@@ -107,6 +110,7 @@ export function AvatarPanel({
           shade={shade}
           umbrella={umbrella}
           reducedMotion={reducedMotion}
+          backdrop={backdrop}
           weather={
             sample
               ? {

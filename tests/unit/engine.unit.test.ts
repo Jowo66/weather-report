@@ -214,3 +214,18 @@ describe('recommender eligibility', () => {
     expect(eligible(['tank_top', 'shorts'], 30)).toBe(true);
   });
 });
+
+describe('config overrides', () => {
+  it('memoises resolved configs so calibrated evaluations stay fast', async () => {
+    const { resolveConfig } = await import('../../src/engine/constants');
+    expect(resolveConfig({ RAIN_EVAP_EFFICIENCY: 0.1 })).toBe(
+      resolveConfig({ RAIN_EVAP_EFFICIENCY: 0.1 }),
+    );
+    expect(resolveConfig({})).toBe(DEFAULT_CONFIG);
+    const w = wx({ tAir: 5, windKmh: 10 });
+    const c = { activity: 'standing', shade: false, umbrella: false, personalOffset: 0 } as const;
+    const t0 = performance.now();
+    for (let i = 0; i < 200; i++) evaluate(w, ['t_shirt'], c, { WIND_PENETRATION: 0.3 });
+    expect((performance.now() - t0) / 200).toBeLessThan(1);
+  });
+});
