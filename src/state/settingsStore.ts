@@ -5,12 +5,15 @@ import { jsonStorage } from './persist';
 export type TempUnit = 'C' | 'F';
 export type WindUnit = 'kmh' | 'mph';
 export type MotionPref = 'system' | 'reduce' | 'full';
+export type AvatarMode = 'auto' | '2d';
 
 export interface SettingsState {
   tempUnit: TempUnit;
   windUnit: WindUnit;
   motion: MotionPref;
   highContrast: boolean;
+  avatarMode: AvatarMode;
+  setAvatarMode: (m: AvatarMode) => void;
   setTempUnit: (u: TempUnit) => void;
   setWindUnit: (u: WindUnit) => void;
   setMotion: (m: MotionPref) => void;
@@ -36,6 +39,8 @@ export const useSettings = create<SettingsState>()(
       ...localeDefaults(nav),
       motion: 'system',
       highContrast: false,
+      avatarMode: 'auto',
+      setAvatarMode: (avatarMode) => set({ avatarMode }),
       setTempUnit: (tempUnit) => set({ tempUnit }),
       setWindUnit: (windUnit) => set({ windUnit }),
       setMotion: (motion) => set({ motion }),

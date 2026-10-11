@@ -1,0 +1,148 @@
+import { Color, MeshPhysicalMaterial, MeshStandardMaterial, type IUniform } from 'three';
+import { ZONE_IDS } from '../../engine';
+import type { SkinResponse } from './skinResponse';
+
+const HASH = /* glsl */ `
+float wrHash(vec3 p) {
+  p = fract(p * 0.3183099 + 0.1);
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}`;
+
+export interface SkinUniforms {
+  uMelanin: IUniform<number>;
+  uHide: IUniform<number[]>;
+  uColdFlush: IUniform<number[]>;
+  uPallor: IUniform<number[]>;
+  uAsh: IUniform<number[]>;
+  uHeatFlush: IUniform<number[]>;
+  uSweat: IUniform<number[]>;
+}
+
+const six = () => [0, 0, 0, 0, 0, 0];
+
+/**
+ * Skin response shader (TDD §8.4): MeshPhysicalMaterial + onBeforeCompile with per-zone
+ * uniforms indexed by the `zone` vertex attribute. The same reaction exists for every tone;
+ * melanin only changes how visible it is (no fake red overlay on dark skin).
+ */
+export function createSkinMaterial(baseHex: string): {
+  material: MeshPhysicalMaterial;
+  uniforms: SkinUniforms;
+} {
+  const uniforms: SkinUniforms = {
+    uMelanin: { value: 0.5 },
+    uHide: { value: six() },
+    uColdFlush: { value: six() },
+    uPallor: { value: six() },
+    uAsh: { value: six() },
+    uHeatFlush: { value: six() },
+    uSweat: { value: six() },
+  };
+  const material = new MeshPhysicalMaterial({
+    color: new Color(baseHex),
+    roughness: 0.55,
+    clearcoat: 0.001, // enables USE_CLEARCOAT; the shader sets the real value from sweat
+    clearcoatRoughness: 0.25,
+    sheen: 0.25,
+  });
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        '#include <common>\nattribute float zone;\nvarying float vZone;\nvarying vec3 vNoisePos;',
+      )
+      .replace(
+        '#include <skinning_vertex>',
+        '#include <skinning_vertex>\nvZone = zone;\nvNoisePos = transformed;',
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+varying float vZone;
+varying vec3 vNoisePos;
+uniform float uMelanin;
+uniform float uHide[6];
+uniform float uColdFlush[6];
+uniform float uPallor[6];
+uniform float uAsh[6];
+uniform float uHeatFlush[6];
+uniform float uSweat[6];
+${HASH}`,
+      )
+      .replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+int zi = int(vZone + 0.5);
+if (uHide[zi] > 0.5) discard;
+vec3 sk = diffuseColor.rgb;
+sk += uColdFlush[zi] * mix(vec3(0.34, -0.09, -0.07), vec3(0.04, -0.02, 0.03), uMelanin);
+sk += uHeatFlush[zi] * mix(vec3(0.26, -0.06, -0.06), vec3(0.03, 0.00, -0.02), uMelanin);
+float lum = dot(sk, vec3(0.299, 0.587, 0.114));
+sk = mix(sk, vec3(lum) * 1.05, uPallor[zi] * (0.6 + 0.3 * uMelanin));
+float ashN = smoothstep(0.55, 0.95, wrHash(floor(vNoisePos * 140.0)));
+sk = mix(sk, sk + vec3(0.07), uAsh[zi] * (0.2 + 0.8 * uMelanin) * ashN);
+diffuseColor.rgb = clamp(sk, 0.0, 1.0);`,
+      )
+      .replace(
+        '#include <roughnessmap_fragment>',
+        '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.25, uSweat[zi]);',
+      )
+      .replace(
+        '#include <lights_physical_fragment>',
+        '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\nmaterial.clearcoat = uSweat[zi] * 0.6;\n#endif',
+      );
+  };
+  material.customProgramCacheKey = () => 'wr-skin-v1';
+  return { material, uniforms };
+}
+
+export function applySkinResponse(
+  u: SkinUniforms,
+  r: SkinResponse,
+  hidden: Set<string>,
+  melanin: number,
+) {
+  u.uMelanin.value = melanin;
+  ZONE_IDS.forEach((z, i) => {
+    u.uHide.value[i] = hidden.has(z) ? 1 : 0;
+    u.uColdFlush.value[i] = r[z].coldFlush;
+    u.uPallor.value[i] = r[z].pallor;
+    u.uAsh.value[i] = r[z].ash;
+    u.uHeatFlush.value[i] = r[z].heatFlush;
+    u.uSweat.value[i] = r[z].sweat;
+  });
+}
+
+/** Hair / brows with a frost overlay (TDD §8.4: white sparkle on brows, lashes, hair tips). */
+export function createHairMaterial(hex: string): {
+  material: MeshStandardMaterial;
+  frost: IUniform<number>;
+} {
+  const frost: IUniform<number> = { value: 0 };
+  const material = new MeshStandardMaterial({ color: new Color(hex), roughness: 0.7 });
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uFrost = frost;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vNoisePos;')
+      .replace(
+        '#include <skinning_vertex>',
+        '#include <skinning_vertex>\nvNoisePos = transformed;',
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>\nvarying vec3 vNoisePos;\nuniform float uFrost;\n${HASH}`,
+      )
+      .replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+float sparkle = step(0.55, wrHash(floor(vNoisePos * 220.0)));
+diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.95, 1.0), uFrost * (0.2 + 0.6 * sparkle));`,
+      );
+  };
+  material.customProgramCacheKey = () => 'wr-hair-v1';
+  return { material, frost };
+}

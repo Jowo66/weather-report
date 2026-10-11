@@ -17,7 +17,7 @@ export function WardrobeRoute() {
       {view ? (
         <div className={`wardrobe-live hero state-${view.result.state}`}>
           <div className="hero-avatar">
-            <AvatarPanel result={view.result} />
+            <AvatarPanel result={view.result} sample={view.sample} />
           </div>
           <div>
             <p className="hero-lead">You&rsquo;ll feel</p>

@@ -860,3 +860,126 @@ main {
   border-radius: 999px;
   box-shadow: var(--shadow);
 }
+
+/* 3D avatar */
+.avatar3d {
+  width: 100%;
+  max-width: 13rem;
+  aspect-ratio: 11 / 20;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.avatar3d canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+@media (max-width: 33.99rem) {
+  .avatar3d {
+    max-width: 10rem;
+  }
+}
+/* Reduced-motion state change: a 200 ms opacity cross-fade (TDD §7.3). */
+.avatar-fade {
+  animation: wr-fade 200ms ease-out;
+}
+@keyframes wr-fade {
+  from {
+    opacity: 0.35;
+  }
+}
+.qa .avatar3d,
+.qa .avatar2d {
+  max-width: 22rem;
+  width: 22rem;
+}
+
+/* Character creator */
+.creator-grid {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 44rem) {
+  .creator-grid {
+    grid-template-columns: 15rem minmax(0, 1fr);
+    align-items: start;
+  }
+  .creator-preview {
+    position: sticky;
+    top: 1rem;
+  }
+}
+.creator-preview {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+}
+.creator-preview .avatar3d,
+.creator-preview .avatar2d {
+  max-width: 13rem;
+}
+.creator-controls .card {
+  margin-top: 0;
+}
+.creator-section {
+  display: grid;
+  gap: 1rem;
+}
+.slider {
+  display: grid;
+  gap: 0.25rem;
+}
+.slider input {
+  width: 100%;
+  min-height: 44px;
+}
+.slider-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+.small {
+  font-size: 0.85rem;
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.swatches legend {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  padding: 0;
+}
+.swatches label {
+  position: relative;
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+.swatches label.on {
+  border-color: var(--fg);
+}
+.swatches input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.swatches label:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.swatch-lg {
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  border: 1px solid rgb(0 0 0 / 25%);
+}
