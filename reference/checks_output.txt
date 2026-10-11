@@ -1,0 +1,15 @@
+reference table strictly increasing: True
+reference person in reference conditions -> 22.0 (expect 22.0)
+monotone in air temperature: 25056/25056
+monotone in wind (T<=30): 504/504
+monotone in humidity (T>=20): 300/300
+monotone in clothing (T<=33): 216/216
+monotone in activity: 20/20
+sun >= shade >= night: 16/16
+rain effects: 4/4
+bare hands (standing, no sun) vs ECCC wind chill:
+    -10C 20 km/h: zone  -16.2  wind chill  -17.9
+    -20C 30 km/h: zone  -30.5  wind chill  -32.6
+    -30C 40 km/h: zone  -44.8  wind chill  -47.5
+     -5C 10 km/h: zone   -6.8  wind chill   -9.3
+ALL PROPERTY CHECKS PASSED

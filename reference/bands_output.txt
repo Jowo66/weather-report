@@ -1,0 +1,32 @@
+
+standing: 60% RH, 10 km/h, overcast daylight
+   -30C  L7   15.7 cool        thermal_top, sweater, winter_coat, thermal_bottoms, snow_pants, wool_socks, winter_boots, gloves, toque, scarf
+   -25C  L7   17.2 cool        thermal_top, sweater, winter_coat, thermal_bottoms, snow_pants, wool_socks, winter_boots, gloves, toque, scarf
+   -20C  L7   18.8 cool        thermal_top, sweater, winter_coat, thermal_bottoms, snow_pants, wool_socks, winter_boots, gloves, toque, scarf
+   -15C  L5   18.2 cool        long_sleeve, sweater, light_jacket, thermal_bottoms, snow_pants, wool_socks, winter_boots, gloves, toque, scarf
+   -10C  L6   19.6 cool        thermal_top, long_sleeve, winter_coat, thermal_bottoms, jeans, wool_socks, winter_boots, gloves, toque, scarf
+    -5C  L5   19.8 cool        long_sleeve, sweater, light_jacket, thermal_bottoms, jeans, wool_socks, winter_boots, gloves, toque, scarf
+     0C  L5   18.8 cool        long_sleeve, sweater, light_jacket, jeans, wool_socks, winter_boots, gloves, toque
+     5C  L5   20.1 comfortable long_sleeve, sweater, light_jacket, jeans, socks, sneakers, gloves, toque
+    10C  L5   17.6 cool        long_sleeve, sweater, light_jacket, jeans, socks, sneakers
+    15C  L3   19.7 cool        t_shirt, hoodie, jeans, socks, sneakers
+    20C  L2   21.4 comfortable long_sleeve, jeans, socks, sneakers
+    25C  L0   21.8 comfortable tank_top, shorts, socks, sneakers
+    30C  L0   29.6 hot         tank_top, shorts, socks, sneakers
+    35C  L0   35.3 overheated  tank_top, shorts, socks, sneakers
+
+walking: 60% RH, 10 km/h, overcast daylight
+   -30C  L7   19.9 cool        thermal_top, sweater, winter_coat, thermal_bottoms, snow_pants, wool_socks, winter_boots, gloves, toque, scarf
+   -25C  L7   21.5 comfortable thermal_top, sweater, winter_coat, thermal_bottoms, snow_pants, wool_socks, winter_boots, gloves, toque, scarf
+   -20C  L7   23.0 comfortable thermal_top, sweater, winter_coat, thermal_bottoms, snow_pants, wool_socks, winter_boots, gloves, toque, scarf
+   -15C  L7   22.7 comfortable thermal_top, sweater, winter_coat, thermal_bottoms, jeans, wool_socks, winter_boots, gloves, toque, scarf
+   -10C  L4   18.5 cool        long_sleeve, light_jacket, thermal_bottoms, jeans, wool_socks, winter_boots, gloves, toque, scarf
+    -5C  L4   21.0 comfortable long_sleeve, light_jacket, thermal_bottoms, jeans, wool_socks, winter_boots, gloves, toque, scarf
+     0C  L3   18.1 cool        t_shirt, hoodie, jeans, wool_socks, winter_boots, gloves, toque
+     5C  L3   20.4 comfortable t_shirt, hoodie, jeans, socks, sneakers, gloves, toque
+    10C  L3   20.3 comfortable t_shirt, hoodie, jeans, socks, sneakers
+    15C  L2   21.2 comfortable long_sleeve, jeans, socks, sneakers
+    20C  L1   22.4 comfortable t_shirt, jeans, socks, sneakers
+    25C  L0   28.0 warm        tank_top, shorts, socks, sneakers
+    30C  L0   33.2 hot         tank_top, shorts, socks, sneakers
+    35C  L0   38.6 overheated  tank_top, shorts, socks, sneakers

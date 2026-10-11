@@ -1,0 +1,39 @@
+E1   -5C, calm, night | thermal top + thermal bottoms + long-sleeve shirt + jeans
+     perceived    9.1 [chilly]  load  -187.6  w_req 0.00  clo 0.88/0.86  Tmrt -5.0  humidex -8.7  windchill -5  []
+     head 0 cool  torso 11 ok  arms 14 ok  hands -2 cold  legs 5 cool  feet -5 cold
+E2   -5C, calm, night | t-shirt + jeans
+     perceived   -4.9 [very_cold]  load  -318.9  w_req 0.00  clo 0.36/0.35  Tmrt -5.0  humidex -8.7  windchill -5  []
+     head 0 cool  torso -1 cold  arms -0 cool  hands -5 cold  legs -3 cool  feet -7 freezing
+E3   32C, 50% RH, midday sun | thermal top + sweater + winter coat + jeans
+     perceived   39.4 [overheated]  load   100.7  w_req 0.80  clo 1.54/1.51  Tmrt 65.8  humidex 39.6  windchill 32  ['heat_strain']
+     head 41 hot  torso 37 hot  arms 36 hot  hands 41 hot  legs 41 hot  feet 42 hot
+E4   22C, 50% RH, shade, light air | reference outfit (t-shirt + jeans) -> must equal 22
+     perceived   22.0 [comfortable]  load   -64.0  w_req 0.00  clo 0.36/0.35  Tmrt 22.0  humidex 23.8  windchill 22  []
+     head 24 ok  torso 23 ok  arms 23 ok  hands 24 ok  legs 23 ok  feet 23 ok
+E5   -15C, 25 km/h, low sun, snow on ground, walking | full winter kit
+     perceived   22.1 [comfortable]  load   -63.1  w_req 0.00  clo 1.97/1.79  Tmrt 16.9  humidex -19.8  windchill -25.2  []
+     head 8 cool  torso 16 ok  arms 19 ok  hands 11 ok  legs -2 cool  feet 11 ok
+E6   E5 without gloves and toque
+     perceived   13.9 [chilly]  load  -141.3  w_req 0.00  clo 1.86/1.70  Tmrt 16.9  humidex -19.8  windchill -25.2  []
+     head -0 cold  torso 16 ok  arms 19 ok  hands -18 freezing  legs -2 cool  feet 10 ok
+E7   10C, rain 3 mm/h, 15 km/h, overcast | t-shirt + hoodie + jeans
+     perceived    3.3 [cold]  load  -241.8  w_req 0.00  clo 0.70/0.35  Tmrt 13.5  humidex 10.9  windchill 10  ['suggest_rain_gear']
+     head 9 cool  torso 11 ok  arms 13 ok  hands 2 cold  legs -1 cool  feet -2 cold
+E8   E7 + rain shell
+     perceived   11.9 [chilly]  load  -160.6  w_req 0.00  clo 0.85/0.68  Tmrt 13.5  humidex 10.9  windchill 10  []
+     head 15 ok  torso 20 ok  arms 21 ok  hands 5 cool  legs -1 cool  feet 0 cold
+E9   31C, 70% RH, 8 km/h, midday sun | tank top + shorts
+     perceived   36.0 [overheated]  load   124.1  w_req 0.40  clo 0.18/0.17  Tmrt 64.8  humidex 42.9  windchill 31  []
+     head 39 hot  torso 39 hot  arms 39 hot  hands 39 hot  legs 42 hot  feet 39 hot
+E10  E9 in the shade
+     perceived   31.4 [hot]  load    36.4  w_req 0.12  clo 0.18/0.17  Tmrt 39.2  humidex 42.9  windchill 31  []
+     head 33 warm  torso 33 warm  arms 33 warm  hands 33 warm  legs 33 warm  feet 33 warm
+E11  36C, 60% RH, 3 km/h, midday sun | tank top + shorts (heatwave)
+     perceived   41.2 [dangerous_heat]  load   205.4  w_req 1.19  clo 0.18/0.18  Tmrt 69.8  humidex 50.2  windchill 36  ['heat_strain', 'heat_danger']
+     head 46 hot  torso 47 hot  arms 46 hot  hands 46 hot  legs 52 hot  feet 47 hot
+E12  -30C, 30 km/h, walking | winter kit + snow pants, NO gloves
+     perceived    7.5 [cold]  load  -202.8  w_req 0.00  clo 2.17/2.03  Tmrt -30.0  humidex -35.4  windchill -45.6  ['frostbite_risk']
+     head -4 cold  torso 9 cool  arms 12 ok  hands -45 numb  legs -1 cool  feet -2 cold
+E13  15C, 60% RH, 10 km/h, low sun, walking | long-sleeve + light jacket + jeans
+     perceived   27.3 [warm]  load   -11.7  w_req 0.00  clo 0.83/0.80  Tmrt 39.6  humidex 15.1  windchill 15  []
+     head 19 ok  torso 25 ok  arms 26 ok  hands 19 ok  legs 19 ok  feet 19 ok
