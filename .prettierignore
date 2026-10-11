@@ -1,0 +1,7 @@
+dist
+pnpm-lock.yaml
+reference
+docs
+CLAUDE.md
+playwright-report
+test-results
