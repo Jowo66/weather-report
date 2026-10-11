@@ -111,3 +111,52 @@ describe('avatar store', () => {
     expect(s).toMatchObject({ frame: 0, hairStyle: 'short' });
   });
 });
+
+describe('3D avatar geometry', () => {
+  it('no hair style covers the eyes', async () => {
+    const { Vector3 } = await import('three');
+    const { buildRig, dimsFor, bake } = await import('../../src/scene/rig');
+    const { hairParts } = await import('../../src/scene/garments3d');
+    const { DEFAULT_APPEARANCE } = await import('../../src/state/avatarStore');
+    const r = buildRig(dimsFor(DEFAULT_APPEARANCE));
+    const brow = r.bones.browL.getWorldPosition(new Vector3()).y;
+    for (const style of ['short', 'buzz', 'curly', 'bob', 'long', 'bun', 'ponytail'] as const) {
+      const parts = hairParts(r, style, false);
+      if (!parts.length) continue;
+      const p = bake(r, parts).attributes.position!;
+      let front = 9;
+      for (let i = 0; i < p.count; i++) {
+        if (p.getZ(i) > 0.07 && Math.abs(p.getX(i)) < 0.035) front = Math.min(front, p.getY(i));
+      }
+      expect(front, style).toBeGreaterThan(brow + 0.005);
+    }
+  });
+
+  it('body and garments are smooth, outward-facing skinned meshes', async () => {
+    const { buildRig, dimsFor } = await import('../../src/scene/rig');
+    const { bodyGeometry, bodyRings, garmentGeometry } = await import('../../src/scene/body');
+    const { DEFAULT_APPEARANCE } = await import('../../src/state/avatarStore');
+    const { GARMENT_IDS } = await import('../../src/engine');
+    const r = buildRig(dimsFor(DEFAULT_APPEARANCE));
+    const rings = bodyRings(r, 0);
+    const body = bodyGeometry(r, rings);
+    for (const a of ['position', 'normal', 'skinIndex', 'skinWeight', 'zone', 'color'])
+      expect(body.attributes[a], a).toBeDefined();
+    // weights normalised
+    const w = body.attributes.skinWeight!;
+    for (let i = 0; i < w.count; i += 97)
+      expect(w.getX(i) + w.getY(i) + w.getZ(i) + w.getW(i)).toBeCloseTo(1, 4);
+    // torso ring stack: normals point outward
+    const { sweep } = await import('../../src/scene/sweep');
+    const torso = sweep(rings.torso);
+    const p = torso.attributes.position!;
+    const n = torso.attributes.normal!;
+    let outward = 0;
+    for (let i = 0; i < p.count; i++)
+      if (p.getX(i) * n.getX(i) + p.getZ(i) * n.getZ(i) > 0) outward++;
+    // Reversed winding would give ~0%; concave spots (waist, neck) account for the rest.
+    expect(outward / p.count).toBeGreaterThan(0.85);
+    for (const id of GARMENT_IDS)
+      expect(garmentGeometry(r, rings, id).attributes.position!.count, id).toBeGreaterThan(0);
+  });
+});
