@@ -78,8 +78,13 @@ ${HASH}`,
 int zi = int(vZone + 0.5);
 if (uHide[zi] > 0.5) discard;
 vec3 sk = diffuseColor.rgb;
-sk += uColdFlush[zi] * mix(vec3(0.34, -0.09, -0.07), vec3(0.04, -0.02, 0.03), uMelanin);
-sk += uHeatFlush[zi] * mix(vec3(0.26, -0.06, -0.06), vec3(0.03, 0.00, -0.02), uMelanin);
+// Visible red flush fades quickly with melanin: deeper skin shows subtle darkening / purple, never red paint.
+float mel = smoothstep(0.0, 0.62, uMelanin);
+// Light skin: additive red/pink. Deep skin: multiplicative darkening with a slight purple cast.
+sk += uColdFlush[zi] * (1.0 - mel) * vec3(0.34, -0.09, -0.07);
+sk *= mix(vec3(1.0), vec3(0.88, 0.84, 0.96), uColdFlush[zi] * mel);
+sk += uHeatFlush[zi] * (1.0 - mel) * vec3(0.26, -0.06, -0.06);
+sk *= mix(vec3(1.0), vec3(0.97, 0.88, 0.84), uHeatFlush[zi] * mel);
 float lum = dot(sk, vec3(0.299, 0.587, 0.114));
 sk = mix(sk, vec3(lum) * 1.05, uPallor[zi] * (0.6 + 0.3 * uMelanin));
 float ashN = smoothstep(0.55, 0.95, wrHash(floor(vNoisePos * 140.0)));
@@ -139,8 +144,8 @@ export function createHairMaterial(hex: string): {
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
-float sparkle = step(0.55, wrHash(floor(vNoisePos * 220.0)));
-diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.95, 1.0), uFrost * (0.2 + 0.6 * sparkle));`,
+float sparkle = step(0.82, wrHash(floor(vNoisePos * 900.0)));
+diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9, 0.95, 1.0), uFrost * (0.45 + 0.2 * sparkle));`,
       );
   };
   material.customProgramCacheKey = () => 'wr-hair-v1';

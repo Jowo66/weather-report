@@ -86,10 +86,10 @@ export function buildBackdrop(kind: Backdrop): BackdropScene {
     solids.push({ geo: new BoxGeometry(30, 0.12, 2), at: [0, 0.06, -4], color: '#a3a7ab' }); // far sidewalk
     const palette = ['#c9b79c', '#9db0c2', '#b98f7a', '#d8d2c4', '#8e9aa6', '#c7a27c', '#a8b49c'];
     for (let i = 0; i < 9; i++) {
-      const w = 1.6 + r() * 1.4;
-      const h = 2.5 + r() * 5;
-      const x = -9 + i * 2.25 + r() * 0.4;
-      const z = -6 - r() * 1.5;
+      const w = 2.6 + r() * 1.6;
+      const h = 4 + r() * 8;
+      const x = -14 + i * 3.5 + r() * 0.6;
+      const z = -13 - r() * 2.5;
       solids.push({
         geo: new BoxGeometry(w, h, 1.6),
         at: [x, h / 2, z],

@@ -1,6 +1,12 @@
 import {
-  ACESFilmicToneMapping,
+  NeutralToneMapping,
+  CanvasTexture,
   CircleGeometry,
+  DoubleSide,
+  MeshPhysicalMaterial,
+  PMREMGenerator,
+  PlaneGeometry,
+  type BufferGeometry,
   Fog,
   InstancedMesh,
   Object3D,
@@ -8,6 +14,7 @@ import {
   DirectionalLight,
   HemisphereLight,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   PCFShadowMap,
   PerspectiveCamera,
@@ -39,7 +46,9 @@ import {
   type AnimInputs,
   type AnimState,
 } from './animation/stateMachine';
-import { garmentParts, hairParts } from './garments3d';
+import { hairParts } from './garments3d';
+import { bodyGeometry, bodyRings, faceGeometry, garmentGeometry, type BodyRings } from './body';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import {
   applySkinResponse,
   createHairMaterial,
@@ -48,17 +57,7 @@ import {
 } from './materials/skinMaterial';
 import { skinResponse } from './materials/skinResponse';
 import { WeatherParticles } from './particles/weatherParticles';
-import {
-  bake,
-  bodyParts,
-  buildRig,
-  capsule,
-  cap,
-  dimsFor,
-  faceParts,
-  type Part,
-  type Rig,
-} from './rig';
+import { bake, buildRig, capsule, cap, dimsFor, type Part, type Rig } from './rig';
 import { skinHex } from './skinTone';
 
 export interface SceneWeather {
@@ -111,6 +110,8 @@ export class AvatarScene {
   private sun = new DirectionalLight('#fff4e0', 2.2);
   private ground: Mesh;
   private rig!: Rig;
+  private rings!: BodyRings;
+  private contact: Mesh;
   private body!: SkinnedMesh;
   private face!: SkinnedMesh;
   private hair!: SkinnedMesh;
@@ -144,9 +145,11 @@ export class AvatarScene {
       alpha: false,
       powerPreference: 'low-power',
     });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    this.lowPower = AvatarScene.detectLowPower(this.renderer);
+    this.renderer.setPixelRatio(this.lowPower ? 1 : Math.min(2, window.devicePixelRatio || 1));
     this.renderer.outputColorSpace = SRGBColorSpace;
-    this.renderer.toneMapping = ACESFilmicToneMapping;
+    this.renderer.toneMapping = NeutralToneMapping;
+    this.renderer.toneMappingExposure = 0.92;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFShadowMap;
     this.renderer.domElement.setAttribute('aria-hidden', 'true');
@@ -160,7 +163,23 @@ export class AvatarScene {
     this.sun.shadow.camera.right = 1.5;
     this.sun.shadow.camera.top = 2.2;
     this.sun.shadow.camera.bottom = -0.5;
-    this.sun.shadow.bias = -0.0005;
+    this.sun.shadow.bias = -0.0004;
+    this.sun.shadow.normalBias = 0.02;
+    this.sun.shadow.mapSize.set(this.lowPower ? 512 : 2048, this.lowPower ? 512 : 2048);
+    // Low power: refresh the shadow map every third frame instead of every frame.
+    if (this.lowPower) this.renderer.shadowMap.autoUpdate = false;
+    // Soft image-based lighting so surfaces read as smooth and rounded (skipped on weak/software GPUs,
+    // where per-pixel environment sampling dominates frame time).
+    if (!this.lowPower) {
+      const pmrem = new PMREMGenerator(this.renderer);
+      const t0 = performance.now();
+      this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04, 0.1, 100, {
+        size: 128,
+      }).texture;
+      this.scene.environmentIntensity = 0.32;
+      this.envMs = performance.now() - t0;
+      pmrem.dispose();
+    }
     this.scene.add(this.hemi, this.sun, this.sun.target);
     this.ground = new Mesh(
       new CircleGeometry(2.4, 48),
@@ -169,6 +188,24 @@ export class AvatarScene {
     this.ground.rotation.x = -Math.PI / 2;
     this.ground.receiveShadow = true;
     this.scene.add(this.ground);
+    // Soft contact shadow under the feet (grounds the figure).
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    const cx = cv.getContext('2d');
+    if (cx) {
+      const grad = cx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grad.addColorStop(0, 'rgba(0,0,0,0.55)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      cx.fillStyle = grad;
+      cx.fillRect(0, 0, 64, 64);
+    }
+    this.contact = new Mesh(
+      new PlaneGeometry(0.75, 0.55),
+      new MeshBasicMaterial({ map: new CanvasTexture(cv), transparent: true, depthWrite: false }),
+    );
+    this.contact.rotation.x = -Math.PI / 2;
+    this.contact.position.set(0, 0.003, 0.03);
+    this.scene.add(this.contact);
     // Footprints in snow (TDD §8.6 / R5): a static trail leading to the avatar.
     this.footprints = new InstancedMesh(
       new CircleGeometry(0.06, 12),
@@ -203,6 +240,7 @@ export class AvatarScene {
   };
 
   private resize() {
+    if (this.cameraLocked) return;
     const w = this.container.clientWidth || 300;
     const h = this.container.clientHeight || 400;
     this.renderer.setSize(w, h, false);
@@ -224,7 +262,10 @@ export class AvatarScene {
   }
 
   private skinned(parts: Part[], material: Material): SkinnedMesh {
-    const geo = bake(this.rig, parts);
+    return this.skinnedGeo(bake(this.rig, parts), material);
+  }
+
+  private skinnedGeo(geo: BufferGeometry, material: Material): SkinnedMesh {
     const m = new SkinnedMesh(geo, material);
     m.bind(this.rig.skeleton);
     m.frustumCulled = false;
@@ -243,14 +284,16 @@ export class AvatarScene {
     if (this.rig) this.scene.remove(this.rig.root);
 
     this.rig = buildRig(dimsFor(a));
+    this.rig.detail = this.lowPower ? 0.5 : 1;
     this.scene.add(this.rig.root);
     const skin = createSkinMaterial(skinHex(a.melanin, a.undertone));
     skin.material.roughness = this.rig.dims.senior ? 0.68 : 0.55;
     this.skin = skin.uniforms;
-    this.body = this.skinned(bodyParts(this.rig), skin.material);
-    this.face = this.skinned(
-      faceParts([0, 0, 0]),
-      new MeshStandardMaterial({ vertexColors: true, roughness: 0.4 }),
+    this.rings = bodyRings(this.rig, a.frame);
+    this.body = this.skinnedGeo(bodyGeometry(this.rig, this.rings), skin.material);
+    this.face = this.skinnedGeo(
+      faceGeometry(this.rig),
+      new MeshPhysicalMaterial({ vertexColors: true, roughness: 0.25, clearcoat: 0.6 }),
     );
     this.face.castShadow = false;
   }
@@ -271,6 +314,7 @@ export class AvatarScene {
       });
     }
     const { material, frost } = createHairMaterial('#ffffff');
+    material.roughness = 0.55;
     material.vertexColors = true;
     const c = new Color(hex);
     for (const p of parts) p.color ??= [c.r, c.g, c.b];
@@ -291,12 +335,25 @@ export class AvatarScene {
     for (const id of worn) {
       if (this.garments.has(id)) continue;
       const def = GARMENT_BY_ID[id];
-      const mat = new MeshStandardMaterial({
-        color: new Color(def.tint.default),
-        roughness: id === 'rain_shell' ? 0.45 : 0.88,
-      });
+      const mat = this.lowPower
+        ? new MeshStandardMaterial({
+            color: new Color(def.tint.default),
+            roughness: id === 'rain_shell' ? 0.45 : 0.85,
+            side: DoubleSide,
+            vertexColors: true,
+          })
+        : new MeshPhysicalMaterial({
+            color: new Color(def.tint.default),
+            roughness: id === 'rain_shell' ? 0.45 : 0.85,
+            // Cloth: soft sheen at grazing angles; shells are glossier.
+            sheen: id === 'rain_shell' ? 0.1 : 0.7,
+            sheenRoughness: 0.7,
+            sheenColor: new Color(def.tint.default).lerp(new Color('#ffffff'), 0.35),
+            side: DoubleSide,
+            vertexColors: true,
+          });
       mat.userData.base = new Color(def.tint.default);
-      this.garments.set(id, this.skinned(garmentParts(this.rig, id), mat));
+      this.garments.set(id, this.skinnedGeo(garmentGeometry(this.rig, this.rings, id), mat));
     }
   }
 
@@ -329,6 +386,15 @@ export class AvatarScene {
 
   // ---------------------------------------------------------------- updates
   update(p: AvatarSceneProps) {
+    const u0 = performance.now();
+    this.updateInner(p);
+    this.updateMs = performance.now() - u0;
+  }
+
+  /** Last update() duration (diagnostics). */
+  updateMs = 0;
+
+  private updateInner(p: AvatarSceneProps) {
     const prev = this.propsCur;
     this.propsCur = p;
     const appearanceChanged =
@@ -423,7 +489,7 @@ export class AvatarScene {
     if (!day) groundCol.multiplyScalar(0.45);
     (this.ground.material as MeshStandardMaterial).color.copy(groundCol);
     this.footprints.visible = snowy;
-    this.hemi.intensity = day ? 1.3 : 0.45;
+    this.hemi.intensity = (day ? 0.85 : 0.35) * (this.lowPower ? 1.5 : 1);
     this.hemi.color.set(day ? '#e3edf7' : '#8fa2c4');
     const alt = w ? Math.max(5, w.sunAltDeg) : 45;
     const az = w ? w.sunAzDeg : 200;
@@ -459,6 +525,11 @@ export class AvatarScene {
   private frame = (now: number) => {
     this.raf = 0;
     if (this.disposed || !this.propsCur) return;
+    if (this.lowPower && now - this.lastRender < 50 && !this.propsCur.reducedMotion) {
+      this.raf = requestAnimationFrame(this.frame);
+      return;
+    }
+    this.lastRender = now;
     const p = this.propsCur;
     const dtMs = Math.min(100, now - this.last);
     this.last = now;
@@ -491,7 +562,10 @@ export class AvatarScene {
     const snowing = !!w && (w.snowfallCmH > 0 || (w.precipMmH > 0 && w.tAir <= 0));
     if (snowing && this.snowAmount < 1) this.setSnow(Math.min(1, this.snowAmount + dtMs / 60_000));
     if (!p.reducedMotion) this.updateParticles(p, dtMs / 1000);
+    const r0 = performance.now();
+    if (this.lowPower && this.frameCount++ % 3 === 0) this.renderer.shadowMap.needsUpdate = true;
     this.renderer.render(this.scene, this.camera);
+    this.frameMs = this.frameMs * 0.9 + (performance.now() - r0) * 0.1;
     // Demand loop: keep going while anything moves; in reduced motion stop once settled.
     if (!document.hidden && (!p.reducedMotion || this.anim.pending || this.anim.fade.t < 1)) {
       this.raf = requestAnimationFrame(this.frame);
@@ -519,7 +593,8 @@ export class AvatarScene {
     b.hips.position.y = this.rig.dims.hipsY + pose.hipsY;
     b.torsoShell.scale.set(1 + pose.breath, 1 + pose.breath * 0.5, 1 + pose.breath);
     b.eyeL.scale.y = b.eyeR.scale.y = Math.max(0.15, 1 - 0.75 * pose.face.squint);
-    b.mouth.scale.set(1 + 0.35 * Math.max(0, pose.face.smile), 0.6 + 2.2 * pose.face.mouthOpen, 1);
+    b.mouth.scale.set(1 + 0.2 * Math.max(0, pose.face.smile), 0.7 + 2.4 * pose.face.mouthOpen, 1);
+    b.mouth.rotation.z = pose.face.smile < -0.25 ? Math.PI : 0; // smile ↔ frown
     b.browL.rotation.z = -0.25 * Math.min(0, pose.face.smile);
     b.browR.rotation.z = 0.25 * Math.min(0, pose.face.smile);
     // Wind sway on hair and loose garments (TDD §8.5).
@@ -530,7 +605,7 @@ export class AvatarScene {
     b.hem.rotation.set(0.04 * sway * gust, 0, 0.03 * sway * gust);
     this.rig.root.updateMatrixWorld(true);
     this.hairFrost.value =
-      this.anim.state === 'freezing' ? 1 : this.anim.state === 'very_cold' ? 0.3 : 0;
+      this.anim.state === 'freezing' ? 0.4 : this.anim.state === 'very_cold' ? 0.12 : 0;
   }
 
   private _v = new Vector3();
@@ -578,8 +653,42 @@ export class AvatarScene {
   /** Render one frame synchronously (tests, screenshots, reduced motion). */
   renderNow() {
     if (!this.propsCur) return;
+    this.renderer.shadowMap.needsUpdate = true;
     this.applyPose(this.propsCur, 0);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Debug/QA: frame a point at a distance (used by #/dev/avatar-qa?zoom=…). */
+  debugCamera(lookY: number, dist: number, yaw = 0) {
+    this.camera.position.set(Math.sin(yaw) * dist, lookY + 0.02, Math.cos(yaw) * dist);
+    this.camera.lookAt(0, lookY, 0);
+    this.camera.updateProjectionMatrix();
+    this.renderer.render(this.scene, this.camera);
+    this.cameraLocked = true;
+  }
+  private cameraLocked = false;
+  /** Software rendering or a weak device: 30 fps cap, smaller shadows, 1× pixel ratio (TDD §8.1). */
+  readonly lowPower: boolean;
+  private lastRender = 0;
+  /** Time spent generating the environment map (diagnostics). */
+  envMs = 0;
+  /** Smoothed render time per frame (diagnostics). */
+  frameMs = 0;
+  private frameCount = 0;
+
+  static detectLowPower(r: WebGLRenderer): boolean {
+    // QA override: #/dev/avatar-qa?quality=high|low
+    const q = /[?&]quality=(high|low)/.exec(window.location.hash)?.[1];
+    if (q) return q === 'low';
+    try {
+      const gl = r.getContext();
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      const name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
+      if (/swiftshader|llvmpipe|software/i.test(name)) return true;
+    } catch {
+      // ignore
+    }
+    return (navigator.hardwareConcurrency ?? 8) <= 4;
   }
 
   get drawCalls() {
@@ -607,6 +716,10 @@ export class AvatarScene {
     (this.footprints.material as Material).dispose();
     this.ground.geometry.dispose();
     (this.ground.material as Material).dispose();
+    this.contact.geometry.dispose();
+    (this.contact.material as MeshBasicMaterial).map?.dispose();
+    (this.contact.material as Material).dispose();
+    this.scene.environment?.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
