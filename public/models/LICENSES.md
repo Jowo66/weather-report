@@ -14,3 +14,9 @@ table, or if the total exceeds the 4 MB avatar budget (TDD §14).
 
 When the CC0 MakeHuman / MPFB2 base body and Blender-authored garments replace the procedural
 meshes, add each exported `.glb` / `.ktx2` here with its source URL and licence.
+
+## Third-party (CC0)
+
+| File                                                                    | Source                                                                                                                                                                                             | Licence | Notes                                                                |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------- |
+| `public/characters/characters.bin`, `public/characters/characters.json` | [Ultimate Animated Character Pack](https://quaternius.com/packs/ultimatedanimatedcharacter.html) by Quaternius (Nov 2019), converted by `tools/characters/build-characters.py` (via Jowo66/strong) | CC0 1.0 | Bodies, faces, hair and base clothing. Not yet wired into the scene. |
