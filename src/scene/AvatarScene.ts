@@ -1,11 +1,15 @@
 import {
   NeutralToneMapping,
+  BufferAttribute,
   CanvasTexture,
   CircleGeometry,
+  CylinderGeometry,
   DoubleSide,
+  Matrix4,
   MeshPhysicalMaterial,
   PMREMGenerator,
   PlaneGeometry,
+  SphereGeometry,
   type BufferGeometry,
   Fog,
   InstancedMesh,
@@ -26,6 +30,8 @@ import {
   WebGLRenderer,
   type Material,
 } from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Backdrop } from '../data/backdrops';
 import { GARMENT_BY_ID } from '../data/garments';
 import { buildBackdrop, type BackdropScene } from './environments/backdrops3d';
@@ -38,7 +44,7 @@ import {
   type ZoneState,
 } from '../engine';
 import type { AvatarAppearance } from '../state/avatarStore';
-import { composePose, JOINTS } from './animation/clips';
+import { composePose } from './animation/clips';
 import {
   initialAnimState,
   nextAnimState,
@@ -46,9 +52,22 @@ import {
   type AnimInputs,
   type AnimState,
 } from './animation/stateMachine';
-import { hairParts } from './garments3d';
-import { bodyGeometry, bodyRings, faceGeometry, garmentGeometry, type BodyRings } from './body';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadedCharacter, loadCharacter, type CharacterAssets, type Sex } from './character/data';
+import {
+  bodyGeometry,
+  bodyModel,
+  defaultBrows,
+  eyesGeometry,
+  garmentGeometry,
+  hairClip,
+  hairGeometry,
+  headMetrics,
+  hiddenMask,
+  lidsGeometry,
+  type BodyModel,
+} from './character/parts';
+import { applyPose, buildRig, type CharacterRig } from './character/skeleton';
+import { characterTextures, loadCharacterTextures } from './character/textures';
 import {
   applySkinResponse,
   createHairMaterial,
@@ -57,7 +76,6 @@ import {
 } from './materials/skinMaterial';
 import { skinResponse } from './materials/skinResponse';
 import { WeatherParticles } from './particles/weatherParticles';
-import { bake, buildRig, capsule, cap, dimsFor, type Part, type Rig } from './rig';
 import { skinHex } from './skinTone';
 
 export interface SceneWeather {
@@ -102,6 +120,11 @@ function greyHair(hex: string, senior: boolean) {
 const sameSet = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((x) => b.includes(x));
 
+/** Load the character data and textures for this sex (the scene builds synchronously from them). */
+export async function preloadCharacter(sex: Sex): Promise<void> {
+  await Promise.all([loadCharacter(sex), loadCharacterTextures(sex)]);
+}
+
 export class AvatarScene {
   readonly renderer: WebGLRenderer;
   private scene = new Scene();
@@ -109,16 +132,21 @@ export class AvatarScene {
   private hemi = new HemisphereLight('#dfe9f5', '#5b5346', 1.4);
   private sun = new DirectionalLight('#fff4e0', 2.2);
   private ground: Mesh;
-  private rig!: Rig;
-  private rings!: BodyRings;
+  private rig!: CharacterRig;
+  private model!: BodyModel;
+  private assets!: CharacterAssets;
   private contact: Mesh;
   private body!: SkinnedMesh;
-  private face!: SkinnedMesh;
-  private hair!: SkinnedMesh;
-  private hairFrost!: { value: number };
+  private eyes!: SkinnedMesh;
+  private lids!: SkinnedMesh;
+  private hair: SkinnedMesh | null = null;
+  private hairFrost = { value: 0 };
   private skin!: SkinUniforms;
   private garments = new Map<GarmentId, SkinnedMesh>();
-  private props: SkinnedMesh | null = null;
+  private props: Mesh | null = null;
+  /** Appearance (JSON) the current meshes were built from; null until the first build. */
+  private builtFor: string | null = null;
+  private loadingSex: Sex | null = null;
   private particles: WeatherParticles;
   private anim: AnimState;
   private propsCur: AvatarSceneProps | null = null;
@@ -158,7 +186,6 @@ export class AvatarScene {
     this.camera.position.set(0, 1.05, 4.6);
     this.camera.lookAt(0, 0.88, 0);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(1024, 1024);
     this.sun.shadow.camera.left = -1.5;
     this.sun.shadow.camera.right = 1.5;
     this.sun.shadow.camera.top = 2.2;
@@ -254,84 +281,111 @@ export class AvatarScene {
   }
 
   // ---------------------------------------------------------------- building
-  private disposeMesh(m: SkinnedMesh | null) {
+  private disposeMesh(m: Mesh | null) {
     if (!m) return;
     m.parent?.remove(m);
     m.geometry.dispose();
     (m.material as Material).dispose();
   }
 
-  private skinned(parts: Part[], material: Material): SkinnedMesh {
-    return this.skinnedGeo(bake(this.rig, parts), material);
-  }
-
   private skinnedGeo(geo: BufferGeometry, material: Material): SkinnedMesh {
     const m = new SkinnedMesh(geo, material);
-    m.bind(this.rig.skeleton);
+    this.scene.add(m);
+    // Meshes sit at the scene origin; the root bone carries the height scale.
+    m.bind(this.rig.skeleton, new Matrix4());
     m.frustumCulled = false;
     m.castShadow = true;
     m.receiveShadow = true;
-    this.scene.add(m);
     return m;
   }
 
-  private buildAvatar(a: AvatarAppearance) {
-    for (const m of [this.body, this.face, this.hair]) this.disposeMesh(m ?? null);
-    for (const m of this.garments.values()) this.disposeMesh(m);
-    this.garments.clear();
+  /** Build the body for this appearance; false while its assets are still loading. */
+  private buildAvatar(a: AvatarAppearance): boolean {
+    const assets = loadedCharacter(a.sex);
+    const tex = characterTextures(a.sex);
+    if (!assets || !tex) {
+      if (this.loadingSex !== a.sex) {
+        this.loadingSex = a.sex;
+        preloadCharacter(a.sex)
+          .then(() => {
+            this.loadingSex = null;
+            if (this.propsCur && !this.disposed) this.update(this.wanted ?? this.propsCur);
+          })
+          .catch((e: unknown) => {
+            this.loadingSex = null;
+            console.warn('Weather Report: character assets unavailable.', e);
+          });
+      }
+      return false;
+    }
+    for (const m of [this.body, this.eyes, this.lids, this.hair]) this.disposeMesh(m ?? null);
+    this.hair = null;
+    for (const id of [...this.garments.keys()]) this.removeGarment(id);
     this.disposeMesh(this.props);
     this.props = null;
     if (this.rig) this.scene.remove(this.rig.root);
 
-    this.rig = buildRig(dimsFor(a));
-    this.rig.detail = this.lowPower ? 0.5 : 1;
+    this.assets = assets;
+    const head = headMetrics(assets.body, assets.hair[defaultBrows(a.sex)]);
+    this.model = bodyModel(assets.body, a.build, head);
+    this.rig = buildRig(assets.body, head);
+    this.rig.root.scale.setScalar(1 + 0.06 * a.height);
     this.scene.add(this.rig.root);
-    const skin = createSkinMaterial(skinHex(a.melanin, a.undertone));
-    skin.material.roughness = this.rig.dims.senior ? 0.68 : 0.55;
+    const skinColor = skinHex(a.melanin, a.undertone);
+    const skin = createSkinMaterial(skinColor, {
+      detail: tex.detail,
+      normal: this.lowPower ? null : tex.normal,
+    });
+    skin.material.roughness = a.ageLook === 'senior' ? 0.68 : 0.55;
     this.skin = skin.uniforms;
-    this.rings = bodyRings(this.rig, a.frame);
-    this.body = this.skinnedGeo(bodyGeometry(this.rig, this.rings), skin.material);
-    this.face = this.skinnedGeo(
-      faceGeometry(this.rig),
-      new MeshPhysicalMaterial({ vertexColors: true, roughness: 0.25, clearcoat: 0.6 }),
+    this.body = this.skinnedGeo(bodyGeometry(this.model), skin.material);
+    this.eyes = this.skinnedGeo(
+      eyesGeometry(this.model),
+      new MeshPhysicalMaterial({ map: tex.eye, roughness: 0.2, clearcoat: 0.6 }),
     );
-    this.face.castShadow = false;
+    this.eyes.castShadow = false;
+    this.lids = this.skinnedGeo(
+      lidsGeometry(this.model),
+      new MeshStandardMaterial({ color: new Color(skinColor), roughness: 0.6 }),
+    );
+    this.lids.castShadow = false;
+    return true;
   }
 
   private buildHair(a: AvatarAppearance, worn: readonly GarmentId[]) {
-    this.disposeMesh(this.hair ?? null);
-    const hatted = worn.includes('toque') || worn.includes('rain_shell');
+    this.disposeMesh(this.hair);
+    this.hair = null;
     const hex = greyHair(a.hairColor, a.ageLook === 'senior');
-    const parts = hairParts(this.rig, a.hairStyle, hatted);
-    // Brows live in the hair mesh so frost applies to them too.
-    const browColor = new Color(lum(hex) > 0.6 ? '#8a7a6a' : hex);
-    for (const s of ['L', 'R'] as const) {
-      parts.push({
-        bone: `brow${s}`,
-        geo: capsule(0.0045, 0.026, 6),
-        rot: [0, 0, Math.PI / 2],
-        color: [browColor.r, browColor.g, browColor.b],
-      });
-    }
-    const { material, frost } = createHairMaterial('#ffffff');
-    material.roughness = 0.55;
-    material.vertexColors = true;
+    // Very light hair keeps darker brows so the face still reads.
+    const brow = new Color(lum(hex) > 0.6 ? '#8a7a6a' : hex);
     const c = new Color(hex);
-    for (const p of parts) p.color ??= [c.r, c.g, c.b];
+    const geo = hairGeometry(this.assets, this.model, {
+      style: a.hairStyle,
+      facialHair: a.facialHair,
+      hair: [c.r, c.g, c.b],
+      brows: [brow.r, brow.g, brow.b],
+      clip: hairClip(this.model.head, worn),
+    });
+    if (!geo) return;
+    const { material, frost } = createHairMaterial(characterTextures(a.sex)?.hair ?? null);
+    material.roughness = 0.6;
     this.hairFrost = frost;
-    this.hair = this.skinned(parts, material);
+    this.hair = this.skinnedGeo(geo, material);
+  }
+
+  private removeGarment(id: GarmentId) {
+    const m = this.garments.get(id);
+    if (m) {
+      this.snowUniforms.delete(
+        (m.material as MeshStandardMaterial).userData.snow as { value: number },
+      );
+      this.disposeMesh(m);
+    }
+    this.garments.delete(id);
   }
 
   private syncGarments(worn: readonly GarmentId[]) {
-    for (const [id, m] of this.garments) {
-      if (!worn.includes(id)) {
-        this.snowUniforms.delete(
-          (m.material as MeshStandardMaterial).userData.snow as { value: number },
-        );
-        this.disposeMesh(m);
-        this.garments.delete(id);
-      }
-    }
+    for (const id of [...this.garments.keys()]) if (!worn.includes(id)) this.removeGarment(id);
     for (const id of worn) {
       if (this.garments.has(id)) continue;
       const def = GARMENT_BY_ID[id];
@@ -353,31 +407,41 @@ export class AvatarScene {
             vertexColors: true,
           });
       mat.userData.base = new Color(def.tint.default);
-      this.garments.set(id, this.skinnedGeo(garmentGeometry(this.rig, this.rings, id), mat));
+      this.garments.set(id, this.skinnedGeo(garmentGeometry(this.model, id), mat));
     }
+    // Skin fully under a garment is discarded (no poke-through, less overdraw).
+    const hide = this.body.geometry.attributes.hide as BufferAttribute;
+    (hide.array as Float32Array).set(hiddenMask(this.model, worn));
+    hide.needsUpdate = true;
   }
 
   private syncProps(umbrella: boolean) {
     if (umbrella && !this.props) {
-      const parts: Part[] = [
-        {
-          bone: 'handR',
-          geo: capsule(0.008, 0.95, 6),
-          at: [0, 0.4, 0.02],
-          color: [0.2, 0.2, 0.22],
-        },
-        {
-          bone: 'handR',
-          geo: cap(0.55, Math.PI * 0.32, 24),
-          at: [0, 0.78, 0.02],
-          scale: [1, 0.55, 1],
-          color: [0.12, 0.3, 0.55],
-        },
+      const tint = (g: BufferGeometry, c: [number, number, number]) => {
+        const n = g.attributes.position!.count;
+        const col = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) col.set(c, i * 3);
+        g.setAttribute('color', new BufferAttribute(col, 3));
+        return g;
+      };
+      const shaft = new CylinderGeometry(0.008, 0.008, 0.95, 8).translate(0, 0.4, 0.02);
+      const canopy = new SphereGeometry(0.55, 24, 10, 0, Math.PI * 2, 0, Math.PI * 0.32)
+        .scale(1, 0.55, 1)
+        .translate(0, 0.78, 0.02);
+      const parts = [
+        tint(shaft.toNonIndexed(), [0.2, 0.2, 0.22]),
+        tint(canopy.toNonIndexed(), [0.12, 0.3, 0.55]),
       ];
-      this.props = this.skinned(
-        parts,
-        new MeshStandardMaterial({ vertexColors: true, roughness: 0.6, side: 2 }),
+      shaft.dispose();
+      canopy.dispose();
+      const geo = mergeGeometries(parts);
+      parts.forEach((g) => g.dispose());
+      this.props = new Mesh(
+        geo,
+        new MeshStandardMaterial({ vertexColors: true, roughness: 0.6, side: DoubleSide }),
       );
+      this.props.castShadow = true;
+      this.rig.anchors.handR.add(this.props);
     } else if (!umbrella && this.props) {
       this.disposeMesh(this.props);
       this.props = null;
@@ -393,18 +457,32 @@ export class AvatarScene {
 
   /** Last update() duration (diagnostics). */
   updateMs = 0;
+  /** Latest requested props (may be ahead of propsCur while a body is loading). */
+  private wanted: AvatarSceneProps | null = null;
 
-  private updateInner(p: AvatarSceneProps) {
+  private updateInner(next: AvatarSceneProps) {
+    this.wanted = next;
+    let p = next;
     const prev = this.propsCur;
-    this.propsCur = p;
-    const appearanceChanged =
-      !prev || JSON.stringify(prev.appearance) !== JSON.stringify(p.appearance);
-    if (appearanceChanged) {
-      this.buildAvatar(p.appearance);
-      this.garments.clear();
+    const hadBody = this.builtFor !== null;
+    const look = JSON.stringify(p.appearance);
+    let rebuilt = false;
+    if (this.builtFor !== look) {
+      if (this.buildAvatar(p.appearance)) {
+        this.builtFor = look;
+        rebuilt = true;
+      } else if (!this.builtFor) {
+        // First body still loading: nothing to show yet.
+        this.propsCur = p;
+        return;
+      } else {
+        // Keep showing the current body until the new one has loaded.
+        p = { ...p, appearance: JSON.parse(this.builtFor) as AvatarAppearance };
+      }
     }
-    if (appearanceChanged || !prev || !sameSet(prev.worn, p.worn)) {
-      if (prev && !appearanceChanged) {
+    this.propsCur = p;
+    if (rebuilt || !prev || !sameSet(prev.worn, p.worn)) {
+      if (prev && hadBody && !rebuilt) {
         if (p.worn.some((g) => !prev.worn.includes(g))) this.events.push('garment_added');
         if (prev.worn.some((g) => !p.worn.includes(g))) this.events.push('garment_removed');
       }
@@ -412,10 +490,7 @@ export class AvatarScene {
       this.buildHair(p.appearance, p.worn);
       this.setSnow(0); // snow resets on outfit change
     }
-    if (appearanceChanged || !prev || prev.umbrella !== p.umbrella) {
-      if (appearanceChanged) this.props = null;
-      this.syncProps(p.umbrella);
-    }
+    if (rebuilt || !prev || prev.umbrella !== p.umbrella) this.syncProps(p.umbrella);
     if (prev?.weather && p.weather) {
       if (prev.weather.precipMmH < 0.2 && p.weather.precipMmH >= 0.2)
         this.events.push('rain_start');
@@ -424,20 +499,11 @@ export class AvatarScene {
       this.gusted = true;
       this.events.push('gust');
     }
-    if (!prev) this.anim = initialAnimState({ perceived: p.perceived, flags: p.flags });
-
-    // Body hiding (TDD §8.2.3): a zone is hidden when a worn garment declares it and covers ≥ 0.8.
-    const hidden = new Set<string>();
-    for (const id of p.worn) {
-      const g = GARMENT_BY_ID[id];
-      for (const z of g.mesh.hidesBody) if ((g.coverage[z] ?? 0) >= 0.8) hidden.add(z);
+    if (!this.animStarted) {
+      this.animStarted = true;
+      this.anim = initialAnimState({ perceived: p.perceived, flags: p.flags });
     }
-    applySkinResponse(
-      this.skin,
-      skinResponse(p.zones, this.anim.state),
-      hidden,
-      p.appearance.melanin,
-    );
+    applySkinResponse(this.skin, skinResponse(p.zones, this.anim.state), p.appearance.melanin);
 
     // Wet fabric: darken ×0.75 and lower roughness (TDD §8.5).
     for (const [id, m] of this.garments) {
@@ -454,6 +520,7 @@ export class AvatarScene {
     this.particles.setVisible(!p.reducedMotion);
     this.kick();
   }
+  private animStarted = false;
 
   private setSnow(v: number) {
     this.snowAmount = v;
@@ -524,7 +591,7 @@ export class AvatarScene {
 
   private frame = (now: number) => {
     this.raf = 0;
-    if (this.disposed || !this.propsCur) return;
+    if (this.disposed || !this.propsCur || !this.builtFor) return;
     if (this.lowPower && now - this.lastRender < 50 && !this.propsCur.reducedMotion) {
       this.raf = requestAnimationFrame(this.frame);
       return;
@@ -548,12 +615,7 @@ export class AvatarScene {
     const prevState = this.anim.state;
     this.anim = nextAnimState(this.anim, inputs, dtMs);
     if (this.anim.state !== prevState) {
-      applySkinResponse(
-        this.skin,
-        skinResponse(p.zones, this.anim.state),
-        this.hiddenZones(p),
-        p.appearance.melanin,
-      );
+      applySkinResponse(this.skin, skinResponse(p.zones, this.anim.state), p.appearance.melanin);
       this.container.dispatchEvent(
         new CustomEvent('wr-anim-state', { detail: this.anim.state, bubbles: true }),
       );
@@ -572,38 +634,18 @@ export class AvatarScene {
     }
   };
 
-  private hiddenZones(p: AvatarSceneProps) {
-    const hidden = new Set<string>();
-    for (const id of p.worn) {
-      const g = GARMENT_BY_ID[id];
-      for (const z of g.mesh.hidesBody) if ((g.coverage[z] ?? 0) >= 0.8) hidden.add(z);
-    }
-    return hidden;
-  }
-
   private applyPose(p: AvatarSceneProps, wind: number) {
     const pose = composePose(this.anim, this.clock, p.reducedMotion);
-    const b = this.rig.bones;
-    for (const j of JOINTS) {
-      const r = pose.rot[j];
-      if (r) b[j].rotation.set(r[0], r[1], r[2]);
-      else b[j].rotation.set(0, 0, 0);
-    }
-    if (p.appearance.ageLook === 'senior') b.spine.rotation.x += 0.06;
-    b.hips.position.y = this.rig.dims.hipsY + pose.hipsY;
-    b.torsoShell.scale.set(1 + pose.breath, 1 + pose.breath * 0.5, 1 + pose.breath);
-    b.eyeL.scale.y = b.eyeR.scale.y = Math.max(0.15, 1 - 0.75 * pose.face.squint);
-    b.mouth.scale.set(1 + 0.2 * Math.max(0, pose.face.smile), 0.7 + 2.4 * pose.face.mouthOpen, 1);
-    b.mouth.rotation.z = pose.face.smile < -0.25 ? Math.PI : 0; // smile ↔ frown
-    b.browL.rotation.z = -0.25 * Math.min(0, pose.face.smile);
-    b.browR.rotation.z = 0.25 * Math.min(0, pose.face.smile);
     // Wind sway on hair and loose garments (TDD §8.5).
     const sway = p.reducedMotion ? 0 : wind;
     const gust = Math.sin(this.clock * 2.3) * 0.6 + Math.sin(this.clock * 5.1) * 0.4;
-    b.hairSway.rotation.set(0.15 * sway + 0.08 * sway * gust, 0, 0.12 * sway * gust);
-    b.scarfTail.rotation.set(-0.35 * sway - 0.1 * sway * gust, 0, 0.2 * sway * gust);
-    b.hem.rotation.set(0.04 * sway * gust, 0, 0.03 * sway * gust);
-    this.rig.root.updateMatrixWorld(true);
+    applyPose(this.rig, pose, {
+      stoop: p.appearance.ageLook === 'senior' ? 0.06 : 0,
+      sway: [0.25 * sway + 0.1 * sway * gust, 0.12 * sway * gust],
+      scarf: [-0.35 * sway - 0.1 * sway * gust, 0.2 * sway * gust],
+    });
+    // Lids exist only to squint; skip their draw call otherwise.
+    this.lids.visible = pose.face.squint > 0.01;
     this.hairFrost.value =
       this.anim.state === 'freezing' ? 0.4 : this.anim.state === 'very_cold' ? 0.12 : 0;
   }
@@ -611,7 +653,7 @@ export class AvatarScene {
   private _v = new Vector3();
   private updateParticles(p: AvatarSceneProps, dt: number) {
     const w = p.weather;
-    const b = this.rig.bones;
+    const b = this.rig.anchors;
     const mouth = b.mouth.getWorldPosition(new Vector3());
     const head = b.head.getWorldPosition(new Vector3()).add(this._v.set(0, 0.18, 0));
     const forward = new Vector3(0, 0, 1).applyQuaternion(
@@ -632,7 +674,7 @@ export class AvatarScene {
           wet > 0.5 &&
           (g.slot === 'torso_outer' || g.slot === 'torso_insulation' || g.slot === 'torso_base')
         ) {
-          drips.push(b.hem.getWorldPosition(new Vector3()).add(new Vector3(0, -0.08, 0.1)));
+          drips.push(b.hem.getWorldPosition(new Vector3()));
         }
       }
     }
@@ -652,7 +694,7 @@ export class AvatarScene {
 
   /** Render one frame synchronously (tests, screenshots, reduced motion). */
   renderNow() {
-    if (!this.propsCur) return;
+    if (!this.propsCur || !this.builtFor) return;
     this.renderer.shadowMap.needsUpdate = true;
     this.applyPose(this.propsCur, 0);
     this.renderer.render(this.scene, this.camera);
@@ -663,7 +705,7 @@ export class AvatarScene {
     this.camera.position.set(Math.sin(yaw) * dist, lookY + 0.02, Math.cos(yaw) * dist);
     this.camera.lookAt(0, lookY, 0);
     this.camera.updateProjectionMatrix();
-    this.renderer.render(this.scene, this.camera);
+    if (this.builtFor) this.renderer.render(this.scene, this.camera);
     this.cameraLocked = true;
   }
   private cameraLocked = false;
@@ -703,13 +745,19 @@ export class AvatarScene {
     return this.anim.state;
   }
 
+  /** True once a character has been built and rendered (QA / tests). */
+  get ready() {
+    return this.builtFor !== null;
+  }
+
   dispose() {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.resizeObs.disconnect();
-    for (const m of [this.body, this.face, this.hair, this.props]) this.disposeMesh(m ?? null);
-    for (const m of this.garments.values()) this.disposeMesh(m);
+    for (const m of [this.body, this.eyes, this.lids, this.hair, this.props])
+      this.disposeMesh(m ?? null);
+    for (const id of [...this.garments.keys()]) this.removeGarment(id);
     this.particles.dispose();
     this.backdrop?.dispose();
     this.footprints.geometry.dispose();

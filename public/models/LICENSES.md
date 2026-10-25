@@ -6,17 +6,27 @@ licence. Only **CC0** or **self-made** assets are allowed. No Mixamo, Sims or ot
 `pnpm assets:build` fails if a file under `public/models` or `public/textures` is missing from this
 table, or if the total exceeds the 4 MB avatar budget (TDD §14).
 
-| File     | Source | Licence | Notes                                                                                                                                                                                                                                |
-| -------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| _(none)_ | —      | —       | The v1 avatar, all 20 garments, hair, props, poses and particles are generated procedurally in code (`src/scene/rig.ts`, `src/scene/garments3d.ts`, `src/scene/animation/clips.ts`). Self-made, no third-party geometry or textures. |
-
-## Planned (TDD §8.2)
-
-When the CC0 MakeHuman / MPFB2 base body and Blender-authored garments replace the procedural
-meshes, add each exported `.glb` / `.ktx2` here with its source URL and licence.
-
 ## Third-party (CC0)
 
-| File                                                                    | Source                                                                                                                                                                                             | Licence | Notes                                                                |
-| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------- |
-| `public/characters/characters.bin`, `public/characters/characters.json` | [Ultimate Animated Character Pack](https://quaternius.com/packs/ultimatedanimatedcharacter.html) by Quaternius (Nov 2019), converted by `tools/characters/build-characters.py` (via Jowo66/strong) | CC0 1.0 | Bodies, faces, hair and base clothing. Not yet wired into the scene. |
+Source: **Universal Base Characters (Standard / free edition)** by [Quaternius](https://quaternius.com),
+CC0 1.0 Universal (public domain dedication, per the pack's `License_Standard.txt`). Converted by
+`tools/characters/build-ubc.py` (geometry re-packed, textures downsized to WebP and turned into tintable
+detail maps). Re-run it with the path to the unzipped pack to regenerate.
+
+| File                            | From the pack                                                                                     | Licence |
+| ------------------------------- | ------------------------------------------------------------------------------------------------- | ------- |
+| `characters/characters.json`    | Skeletons and mesh layout for everything below                                                    | CC0 1.0 |
+| `characters/male.bin`           | `Superhero_Male_FullBody.gltf` (body, eyes)                                                       | CC0 1.0 |
+| `characters/female.bin`         | `Superhero_Female_FullBody.gltf` (body, eyes)                                                     | CC0 1.0 |
+| `characters/hair.bin`           | `Hairstyles/Rigged to Head Bone`: Buzzed, BuzzedFemale, SimpleParted, Long, Buns, Beard, Eyebrows | CC0 1.0 |
+| `characters/male_detail.webp`   | `T_Superhero_Male_Ligh.png` (as a detail map; alpha marks the baked underwear)                    | CC0 1.0 |
+| `characters/female_detail.webp` | `T_Superhero_Female_Light_BaseColor.png` (as above)                                               | CC0 1.0 |
+| `characters/male_normal.webp`   | `T_Superhero_Male_Normal.png`                                                                     | CC0 1.0 |
+| `characters/female_normal.webp` | `T_Superhero_Female_Normal.png`                                                                   | CC0 1.0 |
+| `characters/hair_detail.webp`   | `T_Hair_1_BaseColor.png` and `T_Hair_2_BaseColor.png`, side by side                               | CC0 1.0 |
+| `characters/eye.webp`           | `T_Eye_Brown.png`                                                                                 | CC0 1.0 |
+
+## Self-made
+
+Garments (cut as shells from the body surface at runtime, `src/scene/character/parts.ts`), eyelids,
+the umbrella, poses (`src/scene/animation/clips.ts`), particles and backdrops are generated in code.

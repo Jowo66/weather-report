@@ -2,7 +2,14 @@ import { useMemo } from 'react';
 import { evaluate } from '../../engine';
 import { MONK_SCALE, presetMelanin } from '../../scene/skinTone';
 import { toEngineWeather } from '../../services/types';
-import { useAvatar, type AgeLook, type BuildPreset, type HairStyle } from '../../state/avatarStore';
+import {
+  useAvatar,
+  type AgeLook,
+  type BuildPreset,
+  type FacialHair,
+  type HairStyle,
+  type Sex,
+} from '../../state/avatarStore';
 import { useComfortContext } from '../../state/selectors';
 import { useOutfit } from '../../state/outfitStore';
 import { useSettings, type AvatarMode, type MotionPref } from '../../state/settingsStore';
@@ -23,15 +30,23 @@ const AGES: { id: AgeLook; label: string }[] = [
   { id: 'adult', label: 'Adult' },
   { id: 'senior', label: 'Senior' },
 ];
+const SEXES: { id: Sex; label: string }[] = [
+  { id: 'male', label: 'Male' },
+  { id: 'female', label: 'Female' },
+];
 const HAIR: { id: HairStyle; label: string }[] = [
-  { id: 'short', label: 'Short' },
-  { id: 'buzz', label: 'Buzz' },
-  { id: 'curly', label: 'Curly' },
-  { id: 'bob', label: 'Bob' },
+  { id: 'side_part', label: 'Side part' },
+  { id: 'buzzed', label: 'Buzzed' },
+  { id: 'cropped', label: 'Cropped' },
   { id: 'long', label: 'Long' },
-  { id: 'bun', label: 'Bun' },
-  { id: 'ponytail', label: 'Ponytail' },
+  { id: 'buns', label: 'Buns' },
   { id: 'bald', label: 'Bald' },
+];
+const FACIAL_HAIR: { id: FacialHair; label: string }[] = [
+  { id: 'none', label: 'None' },
+  { id: 'moustache', label: 'Moustache' },
+  { id: 'goatee', label: 'Goatee' },
+  { id: 'beard', label: 'Full beard' },
 ];
 const HAIR_COLORS = [
   '#1c1410',
@@ -134,25 +149,13 @@ export function AvatarRoute() {
 
           <section className="card creator-section">
             <h3 className="card-title">Body</h3>
-            <label className="slider">
-              <span>Frame</span>
-              <input
-                type="range"
-                min={-1}
-                max={1}
-                step={0.05}
-                value={a.frame}
-                onChange={(e) => a.setAppearance({ frame: Number(e.target.value) })}
-                aria-valuetext={
-                  a.frame < -0.33 ? 'masculine' : a.frame > 0.33 ? 'feminine' : 'androgynous'
-                }
-              />
-              <span className="slider-scale muted" aria-hidden>
-                <span>Masculine</span>
-                <span>Androgynous</span>
-                <span>Feminine</span>
-              </span>
-            </label>
+            <Segmented
+              legend="Body"
+              name="sex"
+              options={SEXES}
+              value={a.sex}
+              onChange={(v) => a.setAppearance({ sex: v })}
+            />
             <Segmented
               legend="Build"
               name="build"
@@ -254,6 +257,13 @@ export function AvatarRoute() {
                 </label>
               ))}
             </fieldset>
+            <Segmented
+              legend="Facial hair"
+              name="facialHair"
+              options={FACIAL_HAIR}
+              value={a.facialHair}
+              onChange={(v) => a.setAppearance({ facialHair: v })}
+            />
           </section>
 
           <section className="card creator-section">

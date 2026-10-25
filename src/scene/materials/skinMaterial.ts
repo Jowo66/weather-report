@@ -1,4 +1,10 @@
-import { Color, MeshPhysicalMaterial, MeshStandardMaterial, type IUniform } from 'three';
+import {
+  Color,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
+  type IUniform,
+  type Texture,
+} from 'three';
 import { ZONE_IDS } from '../../engine';
 import type { SkinResponse } from './skinResponse';
 
@@ -11,7 +17,7 @@ float wrHash(vec3 p) {
 
 export interface SkinUniforms {
   uMelanin: IUniform<number>;
-  uHide: IUniform<number[]>;
+  uUnderwear: IUniform<Color>;
   uColdFlush: IUniform<number[]>;
   uPallor: IUniform<number[]>;
   uAsh: IUniform<number[]>;
@@ -25,14 +31,21 @@ const six = () => [0, 0, 0, 0, 0, 0];
  * Skin response shader (TDD §8.4): MeshPhysicalMaterial + onBeforeCompile with per-zone
  * uniforms indexed by the `zone` vertex attribute. The same reaction exists for every tone;
  * melanin only changes how visible it is (no fake red overlay on dark skin).
+ *
+ * `detail` is the character's albedo divided by its mean (×0.5, see tools/characters/build-ubc.py),
+ * so `colour × 2 × detail` gives the chosen tone with the painted shading. Its alpha marks the baked
+ * underwear (0), which is re-tinted. A `hide` vertex attribute discards skin under garments.
  */
-export function createSkinMaterial(baseHex: string): {
+export function createSkinMaterial(
+  baseHex: string,
+  maps: { detail: Texture; normal: Texture | null },
+): {
   material: MeshPhysicalMaterial;
   uniforms: SkinUniforms;
 } {
   const uniforms: SkinUniforms = {
     uMelanin: { value: 0.5 },
-    uHide: { value: six() },
+    uUnderwear: { value: new Color('#2b2d33') },
     uColdFlush: { value: six() },
     uPallor: { value: six() },
     uAsh: { value: six() },
@@ -40,7 +53,9 @@ export function createSkinMaterial(baseHex: string): {
     uSweat: { value: six() },
   };
   const material = new MeshPhysicalMaterial({
-    color: new Color(baseHex),
+    color: new Color(baseHex).multiplyScalar(2),
+    map: maps.detail,
+    normalMap: maps.normal,
     roughness: 0.55,
     clearcoat: 0.001, // enables USE_CLEARCOAT; the shader sets the real value from sweat
     clearcoatRoughness: 0.25,
@@ -51,20 +66,21 @@ export function createSkinMaterial(baseHex: string): {
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nattribute float zone;\nvarying float vZone;\nvarying vec3 vNoisePos;',
+        '#include <common>\nattribute float zone;\nattribute float hide;\nvarying float vZone;\nvarying float vHide;\nvarying vec3 vNoisePos;',
       )
       .replace(
         '#include <skinning_vertex>',
-        '#include <skinning_vertex>\nvZone = zone;\nvNoisePos = transformed;',
+        '#include <skinning_vertex>\nvZone = zone;\nvHide = hide;\nvNoisePos = transformed;',
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
         `#include <common>
 varying float vZone;
+varying float vHide;
 varying vec3 vNoisePos;
 uniform float uMelanin;
-uniform float uHide[6];
+uniform vec3 uUnderwear;
 uniform float uColdFlush[6];
 uniform float uPallor[6];
 uniform float uAsh[6];
@@ -75,8 +91,9 @@ ${HASH}`,
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
+if (vHide > 0.999) discard;
 int zi = int(vZone + 0.5);
-if (uHide[zi] > 0.5) discard;
+float skinA = sampledDiffuseColor.a;
 vec3 sk = diffuseColor.rgb;
 // Visible red flush fades quickly with melanin: deeper skin shows subtle darkening / purple, never red paint.
 float mel = smoothstep(0.0, 0.62, uMelanin);
@@ -89,7 +106,9 @@ float lum = dot(sk, vec3(0.299, 0.587, 0.114));
 sk = mix(sk, vec3(lum) * 1.05, uPallor[zi] * (0.6 + 0.3 * uMelanin));
 float ashN = smoothstep(0.55, 0.95, wrHash(floor(vNoisePos * 140.0)));
 sk = mix(sk, sk + vec3(0.07), uAsh[zi] * (0.2 + 0.8 * uMelanin) * ashN);
-diffuseColor.rgb = clamp(sk, 0.0, 1.0);`,
+sk = clamp(sk, 0.0, 1.0);
+diffuseColor.rgb = mix(uUnderwear * sampledDiffuseColor.rgb * 2.0, sk, skinA);
+diffuseColor.a = 1.0;`,
       )
       .replace(
         '#include <roughnessmap_fragment>',
@@ -100,19 +119,13 @@ diffuseColor.rgb = clamp(sk, 0.0, 1.0);`,
         '#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\nmaterial.clearcoat = uSweat[zi] * 0.6;\n#endif',
       );
   };
-  material.customProgramCacheKey = () => 'wr-skin-v1';
+  material.customProgramCacheKey = () => 'wr-skin-v2';
   return { material, uniforms };
 }
 
-export function applySkinResponse(
-  u: SkinUniforms,
-  r: SkinResponse,
-  hidden: Set<string>,
-  melanin: number,
-) {
+export function applySkinResponse(u: SkinUniforms, r: SkinResponse, melanin: number) {
   u.uMelanin.value = melanin;
   ZONE_IDS.forEach((z, i) => {
-    u.uHide.value[i] = hidden.has(z) ? 1 : 0;
     u.uColdFlush.value[i] = r[z].coldFlush;
     u.uPallor.value[i] = r[z].pallor;
     u.uAsh.value[i] = r[z].ash;
@@ -121,13 +134,22 @@ export function applySkinResponse(
   });
 }
 
-/** Hair / brows with a frost overlay (TDD §8.4: white sparkle on brows, lashes, hair tips). */
-export function createHairMaterial(hex: string): {
+/**
+ * Hair / brows with a frost overlay (TDD §8.4: white sparkle on brows, lashes, hair tips).
+ * Colour comes from vertex colours × 2 × the hair detail atlas (same convention as the skin).
+ */
+export function createHairMaterial(detail: Texture | null): {
   material: MeshStandardMaterial;
   frost: IUniform<number>;
 } {
   const frost: IUniform<number> = { value: 0 };
-  const material = new MeshStandardMaterial({ color: new Color(hex), roughness: 0.7 });
+  const material = new MeshStandardMaterial({
+    color: new Color(detail ? 2 : 1, detail ? 2 : 1, detail ? 2 : 1),
+    map: detail,
+    vertexColors: true,
+    roughness: 0.7,
+    side: 2,
+  });
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uFrost = frost;
     shader.vertexShader = shader.vertexShader

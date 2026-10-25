@@ -207,12 +207,13 @@ Add a rain shell (or umbrella) when precipitation is ≥ 0.5 mm/h, and sun prote
 ### Character creator
 | Option | Values | Affects |
 |---|---|---|
-| Body frame | Masculine, feminine, androgynous (a continuous blend slider, not a binary) | Appearance |
+| Body | Male or female base body (a toggle; the CC0 character pack has no in-between morphs) | Appearance |
 | Build | Slim, average, muscular, heavyset (blend) | Appearance |
 | Height | Short, average, tall (blend) | Appearance |
 | Age look | Young adult, adult, senior | Appearance |
 | Skin tone | Continuous, with 10 presets based on the Monk Skin Tone scale | Appearance and skin-response rendering only |
-| Hair | 6 to 8 styles × colour | Appearance, wind sway |
+| Hair | 6 styles (side part, buzzed, cropped, long, buns, bald) × colour, on either body | Appearance, wind sway |
+| Facial hair | None, moustache, goatee, full beard, on either body | Appearance |
 | **"I run cold / hot"** | −3 to +3°C slider | **The only avatar setting that changes the comfort maths** |
 
 Why appearance doesn't change physics: real differences between individuals are larger than differences between body types, and building them in would imply stereotypes. One honest personal-offset slider is more accurate and respectful. The v1 "teen" option becomes "young adult" (people under 18 have different thermoregulation and are outside the model's validity).
@@ -311,7 +312,7 @@ Engineering acceptance: 100% of golden vectors pass, all property tests pass, Li
 ## 19. Open decisions (owner: product)
 | # | Decision | Default if undecided |
 |---|---|---|
-| D1 | Avatar asset route: CC0 human base (MakeHuman/MPFB) vs fully stylised low-poly built in code | CC0 base, with a code-built low-poly fallback used in R1 and R2 |
+| D1 | Avatar asset route: CC0 human base (MakeHuman/MPFB) vs fully stylised low-poly built in code | **Decided:** Quaternius Universal Base Characters (CC0). The code-built avatar served R1 to R3 and was retired; the 2D avatar remains the fallback |
 | D2 | Which official feels-like to show outside Canada (Humidex/Wind Chill vs Open-Meteo apparent temperature vs US Heat Index) | ECCC indices everywhere, with a setting |
 | D3 | Expand wardrobe beyond 20 garments in v1 (parka, mittens, balaclava, dress, skirt, sandals) | Ship 20, then add 10 in R5 |
 | D4 | Calibration playtest with 10 to 20 people outdoors to tune the heuristic parameters (TDD §4.13) | Yes, before R3 |

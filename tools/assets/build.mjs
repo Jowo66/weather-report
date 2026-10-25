@@ -1,8 +1,8 @@
 // Asset pipeline check (TDD §8.2, §14). Validates licensing and the 4 MB avatar budget for every
-// file under public/models and public/textures. When .glb files are added, optimise them first with
-// gltf-transform (meshopt + KTX2) and list them in public/models/LICENSES.md.
+// file under public/models and public/textures. The character files are produced by
+// tools/characters/build-ubc.py; list every shipped file in public/models/LICENSES.md.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 
 const BUDGET = 4 * 1024 * 1024;
 const roots = ['public/models', 'public/textures'].filter((d) => existsSync(d));
@@ -20,14 +20,14 @@ let total = 0;
 const unlisted = [];
 for (const f of files) {
   total += statSync(f).size;
-  const rel = relative('public/models', f);
-  if (!licences.includes(rel) && !licences.includes(relative('public', f))) unlisted.push(f);
+  // LICENSES.md uses forward slashes on every platform.
+  const posix = (p) => p.split(sep).join('/');
+  const rel = posix(relative('public/models', f));
+  if (!licences.includes(rel) && !licences.includes(posix(relative('public', f)))) unlisted.push(f);
 }
 console.log(
   `${files.length} asset file(s), ${(total / 1024).toFixed(1)} KB (budget ${BUDGET / 1024 / 1024} MB)`,
 );
-if (files.length === 0)
-  console.log('Avatar is procedural (see public/models/LICENSES.md): nothing to optimise.');
 if (unlisted.length) {
   console.error('Not listed in public/models/LICENSES.md:\n  ' + unlisted.join('\n  '));
   process.exit(1);

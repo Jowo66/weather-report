@@ -12,7 +12,14 @@ import { useReducedMotion } from '../lib/useReducedMotion';
 import { canUse3D } from '../lib/webgl';
 import { useShallow } from 'zustand/react/shallow';
 
-const AvatarCanvas = lazy(() => import('../../scene/AvatarCanvas'));
+// The 3D canvas resolves once its code *and* the character for the current sex have loaded, so the
+// 2D avatar shows until then (and stays, via the error boundary, if the assets can't be fetched).
+const AvatarCanvas = lazy(() =>
+  import('../../scene/AvatarCanvas').then(async (m) => {
+    await m.preloadCharacter(useAvatar.getState().sex);
+    return m;
+  }),
+);
 
 export function avatarLabel(result: ComfortResult): string {
   const notable = ZONE_IDS.filter((z) => result.zones[z].state !== 'ok').map(
@@ -49,7 +56,7 @@ export function AvatarPanel({
   );
   const appearance = useAvatar(
     useShallow((s) => ({
-      frame: s.frame,
+      sex: s.sex,
       build: s.build,
       height: s.height,
       ageLook: s.ageLook,
@@ -57,6 +64,7 @@ export function AvatarPanel({
       undertone: s.undertone,
       hairStyle: s.hairStyle,
       hairColor: s.hairColor,
+      facialHair: s.facialHair,
     })),
   );
   const avatarMode = useSettings((s) => s.avatarMode);

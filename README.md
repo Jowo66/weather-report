@@ -32,7 +32,7 @@ pnpm test         # vitest: unit + golden + property + perf budgets
 pnpm e2e          # playwright smoke tests (builds and previews the app)
 pnpm build        # production build to dist/ (base: /weather-report/)
 pnpm size         # bundle budgets: initial JS ≤ 250 KB, three.js chunk ≤ 200 KB (gzip)
-pnpm assets:build # asset licence + 4 MB budget check (avatar is procedural)
+pnpm assets:build # asset licence + 4 MB budget check (character files: tools/characters/build-ubc.py)
 pnpm lint && pnpm typecheck && pnpm format:check
 python3 reference/thermo_ref.py --checks | --golden | --bands
 ```

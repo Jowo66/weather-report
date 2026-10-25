@@ -485,7 +485,7 @@ Use CC0 libraries (e.g. Quaternius Universal Animation Library) for locomotion a
   <EnvironmentBackdrop kind={backdrop} timeOfDay={sun} />
   <WeatherParticles rain snow windVec />
   <AvatarRoot>                       // one Skeleton shared by all meshes
-    <BodyMesh morphs={frame,build,height,age} skinUniforms />
+    <BodyMesh sex build height age skinUniforms />
     <HairMesh sway={wind} />
     <GarmentLayer for each worn garment (sorted by layer) />
     <Props umbrella? sunglasses? />
@@ -498,22 +498,24 @@ Use CC0 libraries (e.g. Quaternius Universal Animation Library) for locomotion a
 - The canvas is lazy-loaded (`React.lazy`) after the weather view is interactive.
 
 ### 8.2 Asset pipeline
-1. **Base body:** MakeHuman / MPFB2 (core assets are CC0). Export one mid-poly body (~8–12k tris) with a game-engine skeleton (~50 bones). Author **shape keys**: `frame_masc`, `frame_fem`, `build_slim`, `build_muscular`, `build_heavy`, `height_short`, `height_tall`, `age_senior`. Androgynous = the neutral base.
-2. **Garments:** modelled over the base and **weight-transferred** to the same skeleton. Each garment carries the **same shape keys** so it follows body morphs. Layer offsets are baked (layer n pushed out ~2–4 mm·n).
-3. **Body hiding:** the body has a `zone_mask` vertex attribute (6 zones). A garment declares `hidesBody` zones; the body shader `discard`s those fragments when any worn garment covers the zone ≥ 0.8. This prevents z-fighting and saves fill.
-4. **Export:** glTF 2.0 with meshopt compression, KTX2 (Basis) textures, ≤ 1k textures for garments and 2k for the body. Use `gltf-transform` in a script under `tools/` (`pnpm assets:build`).
-5. **Animations:** a separate `anims/*.glb` (retargeted to our skeleton), loaded on demand by state group (cold pack, heat pack).
-6. **Licensing:** keep `public/models/LICENSES.md` listing every source asset and its licence. CC0 or self-made only. **No** Mixamo, Sims or other game rips.
-7. **Fallback (ships in R1/R2):** `Avatar2D.tsx`, a layered SVG figure with the same garment ids and zone tint overlays, used when WebGL is unavailable, on low-end devices (`navigator.hardwareConcurrency ≤ 2` or a failed context), or before the 3D bundle loads.
+1. **Base bodies:** Quaternius *Universal Base Characters* (Standard, CC0): a male and a female body (~12.5k tris each) on a UE-mannequin skeleton (65 bones), plus head-rigged hair pieces (buzzed, buzzed-female, side part, long, buns), a beard and two brow shapes. `tools/characters/build-ubc.py <pack dir>` converts them to `public/models/characters/`: one JSON manifest, `male.bin` / `female.bin` / `hair.bin` (float positions/normals/UVs, 4 joints + 4 weights per vertex, inverse bind matrices) and 1k WebP textures. Total ≈ 1.5 MB.
+2. **Tintable textures:** the body albedo is stored as a *detail map* (albedo ÷ mean skin colour, ×0.5 to fit 8 bits); the shader multiplies it by the Monk-scale tone, so one texture serves every skin tone. Its alpha marks the baked underwear, which is re-tinted. Hair textures are an atlas of the same kind, tinted by vertex colour, so one mesh draws scalp hair, brows and facial hair.
+3. **Retargeting:** the pose library (§7) stays procedural. `src/scene/character/skeleton.ts` maps each procedural joint onto a pack bone and converts through world space, using a reference pose with the arms turned down from the T-pose (`ARM_SPREAD`). Extra bones on the head drive eyelids (squint), brows (frown) and long-hair sway; one on the chest swings the scarf end.
+4. **Garments:** shells cut from the body surface at runtime (`src/scene/character/parts.ts`): each garment selects body vertices by landmark (neckline, sleeve length, hem, trouser length…) and pushes them out along welded normals by its layer thickness, keeping the body's skin weights, so they fit and deform exactly with either body and any build. Open edges are smoothed; shoes blur the toes into one shape. Small rigid pieces (scarf end, toque bobble) are merged into their garment's mesh. The `mesh.glb`/`shapeKeys` fields in `garments.json` are unused placeholders.
+5. **Body hiding:** because shells are cut from the body, the covered vertices are known exactly. A per-vertex `hide` attribute (the covered region eroded by two rings, so shell edges overlap skin) makes the skin shader `discard` under every worn garment.
+6. **Hair on either body:** pieces are moved into Head-bone space and, when modelled on the other head, refitted by the ratio of the two head bounding boxes. Hats and hoods drop the scalp-hair triangles fully inside them.
+7. **Licensing:** keep `public/models/LICENSES.md` listing every shipped file and its source. CC0 or self-made only. **No** Mixamo, Sims or other game rips.
+8. **Fallback:** `Avatar2D.tsx`, a layered SVG figure with the same garment ids and zone tint overlays, used when WebGL is unavailable, on low-end devices (`navigator.hardwareConcurrency ≤ 2` or a failed context), while the 3D bundle and character data load, and if they fail to load.
 
-### 8.3 Morph and parameter mapping
+### 8.3 Parameter mapping
 | Creator control | Implementation |
 |---|---|
-| Frame blend (−1 masc … 0 andro … +1 fem) | `frame_masc = max(0,−x)`, `frame_fem = max(0,x)` |
-| Build | Barycentric blend over slim/avg/muscular/heavy |
-| Height | Shape key + root scale 0.94–1.06 (do not scale garments separately) |
-| Age look | `age_senior` key + hair colour + skin roughness |
-| Skin tone | `melanin ∈ [0,1]` + `undertone ∈ {cool,neutral,warm}`. Base albedo from a 10-stop ramp (Monk-scale presets) |
+| Body (male / female) | Which base body loads (lazily, per sex) |
+| Build | Barycentric blend over slim/avg/muscular/heavy, applied as a normal offset per bone group blended by skin weights, plus a belly term for heavy |
+| Height | Root-bone scale 0.94–1.06 (garments follow; never scaled separately) |
+| Age look | Grey hair + skin roughness + slight stoop |
+| Hair / facial hair | Hair piece by style; moustache and goatee are cuts of the beard mesh |
+| Skin tone | `melanin ∈ [0,1]` + `undertone ∈ {cool,neutral,warm}`. Base albedo from a 10-stop ramp (Monk-scale presets) × the detail map |
 
 ### 8.4 Skin response shader
 Extend `MeshPhysicalMaterial` via `onBeforeCompile` (or TSL node material if WebGPU is adopted later).
@@ -547,7 +549,7 @@ frost: white sparkle overlay masked to brows/lashes/hair-tips (separate hair mat
 | Store | State | Persisted (`localStorage`) |
 |---|---|---|
 | `settingsStore` | units, reducedMotion override, highContrast, backdrop override, officialIndexMode | ✓ `wr:settings:v1` |
-| `avatarStore` | frame, build, height, ageLook, skin, hair, personalOffset | ✓ `wr:avatar:v1` |
+| `avatarStore` | sex, build, height, ageLook, skin, hair, facialHair, personalOffset | ✓ `wr:avatar:v1` (schema v3) |
 | `outfitStore` | worn `GarmentId[]`, wardrobe (owned items), activity, shade, umbrella | ✓ `wr:outfit:v1` |
 | `weatherStore` | selected location, `WeatherSample` current + hourly + daily, status, fetchedAt | location only |
 | `travelStore` | trips[], destinations, dates, profile, packedChecks | ✓ `wr:travel:v1` |
