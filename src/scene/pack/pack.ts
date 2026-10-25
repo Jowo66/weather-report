@@ -97,6 +97,8 @@ export interface SkeletonInfo {
   /** Reference world orientation matching the procedural rig's rest pose (limbs hanging down). */
   ref: Quaternion[];
   inverseBind: Matrix4[];
+  /** Bone origins in the bind pose (pack units). */
+  bindPoint: Vector3[];
   /** Body bone height in the bind pose (pack units). */
   hipY: number;
 }
@@ -171,15 +173,7 @@ export function decodePack(m: Manifest, bin: ArrayBuffer): Pack {
 export function skeletonInfo(m: Manifest): SkeletonInfo {
   const n = m.bones.length;
   const parent = new Int8Array(n);
-  const bindPos: Vector3[] = [];
-  const bindQuat: Quaternion[] = [];
-  const bindScale: Vector3[] = [];
-  m.bones.forEach((b, i) => {
-    parent[i] = b.parent;
-    bindPos.push(new Vector3(b.t[0], b.t[1], b.t[2]));
-    bindQuat.push(new Quaternion(b.r[0], b.r[1], b.r[2], b.r[3]));
-    bindScale.push(new Vector3(b.s[0], b.s[1], b.s[2]));
-  });
+  m.bones.forEach((b, i) => (parent[i] = b.parent));
   const order: number[] = [];
   const seen = new Set<number>();
   const visit = (i: number) => {
@@ -189,15 +183,36 @@ export function skeletonInfo(m: Manifest): SkeletonInfo {
     order.push(i);
   };
   for (let i = 0; i < n; i++) visit(i);
-  const bindWorld: Quaternion[] = new Array<Quaternion>(n);
-  const worldPos: Vector3[] = new Array<Vector3>(n);
-  for (const i of order) {
+  // The manifest's bone transforms are an animation pose; the mesh was skinned in the T-pose that
+  // the inverse bind matrices describe, so the rest skeleton comes from those.
+  const inverseBind: Matrix4[] = [];
+  const world: Matrix4[] = [];
+  for (let i = 0; i < n; i++) {
+    inverseBind.push(new Matrix4().fromArray(m.inverseBind, i * 16));
+    world.push(inverseBind[i]!.clone().invert());
+  }
+  const bindPos: Vector3[] = [];
+  const bindQuat: Quaternion[] = [];
+  const bindScale: Vector3[] = [];
+  const bindWorld: Quaternion[] = [];
+  const worldPos: Vector3[] = [];
+  const local = new Matrix4();
+  for (let i = 0; i < n; i++) {
     const p = parent[i]!;
-    bindWorld[i] = p < 0 ? bindQuat[i]!.clone() : bindWorld[p]!.clone().multiply(bindQuat[i]!);
-    worldPos[i] =
-      p < 0
-        ? bindPos[i]!.clone()
-        : bindPos[i]!.clone().applyQuaternion(bindWorld[p]!).add(worldPos[p]!);
+    local.copy(world[i]!);
+    if (p >= 0) local.premultiply(world[p]!.clone().invert());
+    const t = new Vector3();
+    const q = new Quaternion();
+    const sc = new Vector3();
+    local.decompose(t, q, sc);
+    bindPos.push(t);
+    bindQuat.push(q);
+    bindScale.push(sc);
+    const wt = new Vector3();
+    const wq = new Quaternion();
+    world[i]!.decompose(wt, wq, new Vector3());
+    bindWorld.push(wq);
+    worldPos.push(wt);
   }
   const down = new Vector3(0, -1, 0);
   const ref = bindWorld.map((q, i) => {
@@ -205,8 +220,6 @@ export function skeletonInfo(m: Manifest): SkeletonInfo {
     const dir = new Vector3(0, 1, 0).applyQuaternion(q); // bones point along their local +Y
     return new Quaternion().setFromUnitVectors(dir, down).multiply(q);
   });
-  const inverseBind: Matrix4[] = [];
-  for (let i = 0; i < n; i++) inverseBind.push(new Matrix4().fromArray(m.inverseBind, i * 16));
   return {
     n,
     names: m.bones.map((b) => b.name),
@@ -218,6 +231,7 @@ export function skeletonInfo(m: Manifest): SkeletonInfo {
     bindWorld,
     ref,
     inverseBind,
+    bindPoint: worldPos,
     hipY: worldPos[J.Body]!.y,
   };
 }
