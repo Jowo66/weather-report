@@ -6,3 +6,4 @@ CLAUDE.md
 playwright-report
 test-results
 tests/fixtures
+public/models/characters
