@@ -6,11 +6,13 @@ import { jsonStorage } from './persist';
 
 export type BuildPreset = 'slim' | 'average' | 'muscular' | 'heavy';
 export type AgeLook = 'young_adult' | 'adult' | 'senior';
-export type HairStyle = 'short' | 'buzz' | 'bob' | 'long' | 'curly' | 'bun' | 'ponytail' | 'bald';
+export type Sex = 'male' | 'female';
+export type HairStyle = 'buzzed' | 'cropped' | 'side_part' | 'long' | 'buns' | 'bald';
+export type FacialHair = 'none' | 'moustache' | 'goatee' | 'beard';
 
 export interface AvatarAppearance {
-  /** −1 masculine … 0 androgynous … +1 feminine (continuous). */
-  frame: number;
+  /** Which base body (Quaternius Universal Base Characters). Appearance only. */
+  sex: Sex;
   /** Barycentric weights over slim / average / muscular / heavy; sums to 1. */
   build: Record<BuildPreset, number>;
   /** −1 short … +1 tall. */
@@ -20,6 +22,7 @@ export interface AvatarAppearance {
   undertone: Undertone;
   hairStyle: HairStyle;
   hairColor: string;
+  facialHair: FacialHair;
 }
 
 export interface AvatarState extends AvatarAppearance {
@@ -35,28 +38,41 @@ export const clampOffset = (v: number) => Math.max(-3, Math.min(3, Math.round(v 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export const DEFAULT_APPEARANCE: AvatarAppearance = {
-  frame: 0,
+  sex: 'male',
   build: { slim: 0, average: 1, muscular: 0, heavy: 0 },
   height: 0,
   ageLook: 'adult',
   melanin: 0.5,
   undertone: 'neutral',
-  hairStyle: 'short',
+  hairStyle: 'side_part',
   hairColor: '#3b2a20',
+  facialHair: 'none',
 };
 
-export const AVATAR_STORE_VERSION = 2;
-const HAIR: readonly HairStyle[] = [
-  'short',
-  'buzz',
-  'bob',
+export const AVATAR_STORE_VERSION = 3;
+export const HAIR_STYLES: readonly HairStyle[] = [
+  'side_part',
+  'buzzed',
+  'cropped',
   'long',
-  'curly',
-  'bun',
-  'ponytail',
+  'buns',
   'bald',
 ];
+export const FACIAL_HAIR: readonly FacialHair[] = ['none', 'moustache', 'goatee', 'beard'];
+const SEXES: readonly Sex[] = ['male', 'female'];
 const AGES: readonly AgeLook[] = ['young_adult', 'adult', 'senior'];
+
+/** v2 procedural hair styles → the closest style in the character pack. */
+const V2_HAIR: Record<string, HairStyle> = {
+  short: 'side_part',
+  buzz: 'buzzed',
+  bob: 'cropped',
+  long: 'long',
+  curly: 'cropped',
+  bun: 'buns',
+  ponytail: 'long',
+  bald: 'bald',
+};
 
 export function normaliseBuild(
   b: Partial<Record<BuildPreset, number>>,
@@ -68,14 +84,27 @@ export function normaliseBuild(
   return Object.fromEntries(keys.map((k, i) => [k, v[i]! / sum])) as Record<BuildPreset, number>;
 }
 
-/** v1 (offset only) → v2 (appearance). */
+/** v1 (offset only) → v2 (appearance) → v3 (sex toggle and facial hair replace the frame blend). */
 export function migrateAvatar(persisted: unknown, fromVersion: number) {
   return runMigrations(
     {
       1: (s) => ({
-        ...DEFAULT_APPEARANCE,
+        frame: 0,
+        build: DEFAULT_APPEARANCE.build,
+        height: 0,
+        ageLook: 'adult',
+        melanin: DEFAULT_APPEARANCE.melanin,
+        undertone: DEFAULT_APPEARANCE.undertone,
+        hairStyle: 'short',
+        hairColor: DEFAULT_APPEARANCE.hairColor,
         ...s,
         personalOffset: clampOffset(Number(s.personalOffset) || 0),
+      }),
+      2: ({ frame, hairStyle, ...s }) => ({
+        ...s,
+        sex: Number(frame) > 0.33 ? 'female' : 'male',
+        hairStyle: V2_HAIR[String(hairStyle)] ?? DEFAULT_APPEARANCE.hairStyle,
+        facialHair: 'none',
       }),
     },
     persisted,
@@ -86,11 +115,12 @@ export function migrateAvatar(persisted: unknown, fromVersion: number) {
 
 function sanitize(p: Partial<AvatarAppearance>): Partial<AvatarAppearance> {
   const out: Partial<AvatarAppearance> = { ...p };
-  if (p.frame !== undefined) out.frame = clamp(p.frame, -1, 1);
+  if (p.sex !== undefined && !SEXES.includes(p.sex)) delete out.sex;
+  if (p.facialHair !== undefined && !FACIAL_HAIR.includes(p.facialHair)) delete out.facialHair;
   if (p.height !== undefined) out.height = clamp(p.height, -1, 1);
   if (p.melanin !== undefined) out.melanin = clamp(p.melanin, 0, 1);
   if (p.build !== undefined) out.build = normaliseBuild(p.build);
-  if (p.hairStyle !== undefined && !HAIR.includes(p.hairStyle)) delete out.hairStyle;
+  if (p.hairStyle !== undefined && !HAIR_STYLES.includes(p.hairStyle)) delete out.hairStyle;
   if (p.ageLook !== undefined && !AGES.includes(p.ageLook)) delete out.ageLook;
   if (p.hairColor !== undefined && !/^#[0-9a-f]{6}$/i.test(p.hairColor)) delete out.hairColor;
   return out;

@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { AvatarScene, type AvatarSceneProps } from './AvatarScene';
 
+export { preloadCharacter } from './AvatarScene';
+
 export interface AvatarCanvasProps extends AvatarSceneProps {
   label: string;
   onStateChange?: (state: string) => void;

@@ -108,7 +108,17 @@ test('character creator changes appearance but never the number', async ({ page 
   await page.getByRole('radio', { name: 'Tone 9' }).check();
   await page.getByRole('radio', { name: 'Heavyset' }).check();
   await page.getByRole('radio', { name: 'Senior' }).check();
-  await page.getByRole('radio', { name: 'Ponytail' }).check();
+  await page.getByRole('radio', { name: 'Female' }).check();
+  await page.getByRole('radio', { name: 'Buns' }).check();
+  await page.getByRole('radio', { name: 'Goatee' }).check();
+  // The 3D avatar rebuilds with the other body once it has loaded.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { __wrAvatar?: { ready: boolean } }).__wrAvatar?.ready,
+      ),
+    )
+    .toBe(true);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.getByRole('link', { name: 'Now' }).click();
   await expect(page.getByTestId('perceived')).toHaveText(n!);
