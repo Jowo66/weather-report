@@ -524,10 +524,21 @@ export function regionMask(b: BodyModel, cut: Cut): Uint8Array {
   return mask;
 }
 
+const maskCache = new WeakMap<BodyModel, Map<GarmentId, Uint8Array>>();
+
+/** A garment's region mask on this body (computed once per body; outfit changes reuse it). */
+export function garmentMask(b: BodyModel, id: GarmentId): Uint8Array {
+  let byId = maskCache.get(b);
+  if (!byId) maskCache.set(b, (byId = new Map()));
+  let mask = byId.get(id);
+  if (!mask) byId.set(id, (mask = regionMask(b, garmentCut(b, id))));
+  return mask;
+}
+
 /** One shell: the covered triangles pushed out along the normal, with the body's skin weights. */
 export function garmentGeometry(b: BodyModel, id: GarmentId): BufferGeometry {
   const cut = garmentCut(b, id);
-  const mask = regionMask(b, cut);
+  const mask = garmentMask(b, id);
   const m = b.data.body;
   const remap = new Int32Array(mask.length).fill(-1);
   const tris: number[] = [];
@@ -727,17 +738,37 @@ function blurPass(b: BodyModel, verts: number[], pos: Float32Array, r: number) {
   const out = new Vector3();
   const q = new Vector3();
   const p = new Vector3();
+  // Spatial hash with 3r cells: only the 27 neighbouring cells can be within the 3r cut-off.
+  const cell = 3 * r;
+  const key = (x: number, y: number, z: number) => ((x + 512) * 1024 + y + 512) * 1024 + z + 512;
+  const grid = new Map<number, number[]>();
+  for (const [, k] of feet) {
+    const c = key(
+      Math.floor(src[k * 3]! / cell),
+      Math.floor(src[k * 3 + 1]! / cell),
+      Math.floor(src[k * 3 + 2]! / cell),
+    );
+    const list = grid.get(c);
+    if (list) list.push(k);
+    else grid.set(c, [k]);
+  }
   for (const [, k] of feet) {
     v3(src, k, p);
     out.set(0, 0, 0);
     let wsum = 0;
-    for (const [, j] of feet) {
-      const d2 = v3(src, j, q).distanceToSquared(p);
-      if (d2 > 9 * r * r) continue;
-      const w = Math.exp(-d2 / (2 * r * r));
-      out.addScaledVector(q, w);
-      wsum += w;
-    }
+    const cx = Math.floor(p.x / cell);
+    const cy = Math.floor(p.y / cell);
+    const cz = Math.floor(p.z / cell);
+    for (let dx = -1; dx <= 1; dx++)
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dz = -1; dz <= 1; dz++)
+          for (const j of grid.get(key(cx + dx, cy + dy, cz + dz)) ?? []) {
+            const d2 = v3(src, j, q).distanceToSquared(p);
+            if (d2 > 9 * r * r) continue;
+            const w = Math.exp(-d2 / (2 * r * r));
+            out.addScaledVector(q, w);
+            wsum += w;
+          }
     out.divideScalar(wsum);
     // Blurring shrinks the shape; push back out to roughly where the surface was.
     pos.set([out.x, out.y, out.z], k * 3);
@@ -755,7 +786,7 @@ export function hiddenMask(b: BodyModel, worn: readonly GarmentId[]): Float32Arr
   const count = b.ring.length;
   let cover = new Uint8Array(count);
   for (const id of worn) {
-    const mask = regionMask(b, garmentCut(b, id));
+    const mask = garmentMask(b, id);
     // A welded vertex is covered only if every copy of it is.
     const all = new Uint8Array(count).fill(1);
     for (let i = 0; i < mask.length; i++) if (!mask[i]) all[b.weld[i]!] = 0;

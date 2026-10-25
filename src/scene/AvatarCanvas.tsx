@@ -26,9 +26,27 @@ export default function AvatarCanvas({ label, onStateChange, ...props }: AvatarC
     };
   }, []);
 
+  // Rebuilding garments can take tens of ms; apply the latest props after the browser has painted
+  // so the comfort number never waits on the 3D scene (TDD §14: toggle → number ≤ 50 ms).
+  const latest = useRef(props);
+  const pending = useRef(0);
   useEffect(() => {
-    scene.current?.update(props);
+    latest.current = props;
+    if (pending.current) return;
+    pending.current = requestAnimationFrame(() => {
+      pending.current = window.setTimeout(() => {
+        pending.current = 0;
+        scene.current?.update(latest.current);
+      }, 0);
+    });
   });
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(pending.current);
+      clearTimeout(pending.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     const el = host.current;
