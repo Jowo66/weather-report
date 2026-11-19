@@ -34,6 +34,10 @@ export function App() {
           Skip to content
         </a>
         <header className="header">
+          <nav className="garden-nav" aria-label="Portfolio">
+            <a className="gn-tree" href="https://jowo66.github.io/" title="Back to jowo66.github.io" aria-label="Back to jowo66.github.io"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M8 1 4.2 6h2L3 10.5h3.6L5 13h6l-1.6-2.5H13L9.8 6h2z" fill="currentColor"/><rect x="7" y="13" width="2" height="2" fill="currentColor"/></svg></a>
+            <a className="gn-link" href="https://jowo66.github.io/garden.html">Garden</a>
+          </nav>
           <h1 className="brand">Weather Report</h1>
           <nav aria-label="Main">
             <ul>

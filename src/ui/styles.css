@@ -132,6 +132,27 @@ h3 {
   gap: 0.5rem 1rem;
   padding: 1rem 0 0.75rem;
 }
+.garden-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-right: 0.75rem;
+  border-right: 1px solid currentColor;
+}
+.garden-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2rem;
+  padding: 0 0.4rem;
+  border-radius: 99px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.garden-nav a:hover,
+.garden-nav a:focus-visible {
+  text-decoration: underline;
+}
 .brand {
   font-size: 1.25rem;
   margin: 0;
